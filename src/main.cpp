@@ -64,24 +64,8 @@ const char* user_code = "";
 const char* device_code = "";
 
 
-/**
- * Handle web requests to "/" path.
- */
-void handleRoot()
-{
-	// -- Let IotWebConf test and handle captive portal requests.
-	if (iotWebConf.handleCaptivePortal())
-	{
-		// -- Captive portal request were already served.
-		return;
-	}
-	String s = "<!DOCTYPE html>\n<html lang=\"en\">\n<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/>";
-	s += "<title>IotWebConf 01 Minimal</title></head>\n<body>Hello world!";
-	s += "Go to <a href=\"config\">configure page</a> to change settings.";
-	s += "</body>\n</html>\n";
 
-	server.send(200, "text/html", s);
-}
+
 
 void wifiConnected()
 {
@@ -144,6 +128,52 @@ DynamicJsonDocument requestJsonApi(String url, String type = "POST") {
 }
 
 
+
+/**
+ * Handle web requests 
+ */
+void handleRoot()
+{
+	// -- Let IotWebConf test and handle captive portal requests.
+	if (iotWebConf.handleCaptivePortal())
+	{
+		// -- Captive portal request were already served.
+		return;
+	}
+	String s = "<!DOCTYPE html>\n<html lang=\"en\">\n<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/>";
+	s += "<title>IotWebConf 01 Minimal</title></head>\n<body>Hello world!";
+	s += "Go to <a href=\"config\">configure page</a> to change settings.";
+	s += "</body>\n</html>\n";
+
+	server.send(200, "text/html", s);
+}
+
+void startDevicelogin() {
+	Serial.println("startDevicelogin()");
+	DynamicJsonDocument doc = requestJsonApi("https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/devicecode");
+
+	// Save device_code and user_code
+	device_code = doc["device_code"];
+	user_code = doc["user_code"];
+	const char* verification_uri = doc["verification_uri"];
+	const char* message = doc["message"];
+
+	// Prepare response JSON
+	const int capacity = JSON_OBJECT_SIZE(3);
+	StaticJsonDocument<capacity> responseDoc;
+	responseDoc["user_code"] = user_code;
+	responseDoc["verification_uri"] = verification_uri;
+	responseDoc["message"] = message;
+
+	// Serial.println(doc.as<String>());
+	// Serial.println(responseDoc.as<String>());
+
+	// Send response
+	server.send(200, "application/json", responseDoc.as<String>());
+}
+
+
+
 void setup()
 {
 	Serial.begin(115200);
@@ -164,6 +194,7 @@ void setup()
 
 	// -- Set up required URL handlers on the web server.
 	server.on("/", handleRoot);
+	server.on("/startDevicelogin", [] { startDevicelogin(); });
 	server.on("/config", [] { iotWebConf.handleConfig(); });
 	server.onNotFound([]() { iotWebConf.handleNotFound(); });
 
@@ -181,12 +212,12 @@ void loop()
 		Serial.println("REQUEST");
 		// Serial.setDebugOutput(true);
 
-		DynamicJsonDocument doc = requestJsonApi("https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/devicecode");
+		// DynamicJsonDocument doc = requestJsonApi("https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/devicecode");
 
-		device_code = doc["device_code"];
-		Serial.printf("Device code: %s\n", device_code);
-		user_code = doc["user_code"];
-		Serial.printf("User code: %s\n", user_code);
+		// device_code = doc["device_code"];
+		// Serial.printf("Device code: %s\n", device_code);
+		// user_code = doc["user_code"];
+		// Serial.printf("User code: %s\n", user_code);
 
 		wifiIsConnected = false;
 	}
