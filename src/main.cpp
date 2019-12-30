@@ -60,8 +60,8 @@ BearSSL::WiFiClientSecure client;
 
 
 // Global variables
-const char* user_code = "";
-const char* device_code = "";
+String user_code = "";
+String device_code = "";
 unsigned int interval = 5;
 
 // Statemachine
@@ -84,20 +84,24 @@ void wifiConnected()
 
 
 // API Helper
-DynamicJsonDocument requestJsonApi(String url, String type = "POST") {
+DynamicJsonDocument requestJsonApi(String url, String payload = "", size_t capacity = 0, String type = "POST") {
 	std::unique_ptr<BearSSL::WiFiClientSecure>client(new BearSSL::WiFiClientSecure);
 	client->setInsecure();
 
 	HTTPClient https;
 
+	// Empty response
+	const int emptyCapacity = JSON_OBJECT_SIZE(1);
+	DynamicJsonDocument emptyDoc(emptyCapacity);
+
 	Serial.print("[HTTPS] begin...\n");
     if (https.begin(*client, url)) {  // HTTPS
 
-		Serial.printf("[HTTPS] %s...\n", type.c_str());
+		Serial.printf("[HTTPS] %s ...\n", type.c_str());
 		// start connection and send HTTP header
-		int httpCode;
+		int httpCode = 0;
 		if (type == "POST") {
-			httpCode = https.POST("client_id=3837bbf0-30fb-47ad-bce8-f460ba9880c3&scope=offline_access%20openid");
+			httpCode = https.POST(payload);
 		} else {
 			httpCode = https.GET();
 		}
@@ -105,35 +109,39 @@ DynamicJsonDocument requestJsonApi(String url, String type = "POST") {
 		// httpCode will be negative on error
 		if (httpCode > 0) {
 			// HTTP header has been send and Server response header has been handled
-			Serial.printf("[HTTPS] %s... code: %d\n", type.c_str(), httpCode);
+			Serial.printf("[HTTPS] %s ... code: %d\n", type.c_str(), httpCode);
 
-			// file found at server
-			if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
+			// File found at server (200, 301 or 400)
+			if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY || httpCode == HTTP_CODE_BAD_REQUEST) {
 				Stream& responseStream = https.getStream();
-
+				Serial.printf("[HTTPS] Got HTTP stream\n");
 
 				// Allocate the JSON document
 				// Use arduinojson.org/v6/assistant to compute the capacity.
-				const size_t capacity = JSON_OBJECT_SIZE(6) + 540;
 				DynamicJsonDocument doc(capacity);
-				Serial.println("Got stream");
 
 				// Parse JSON object
 				DeserializationError error = deserializeJson(doc, responseStream);
 				if (error) {
 					Serial.print(F("deserializeJson() failed: "));
 					Serial.println(error.c_str());
+					return emptyDoc;
 				} else {
 					return doc;
 				}
+			} else {
+				Serial.print("[HTTPS] Result: ");
+				Serial.println(https.getString());
 			}
 		} else {
-			Serial.printf("[HTTPS] GET... failed, error: %d, %s\n", httpCode, https.errorToString(httpCode).c_str());
+			Serial.printf("[HTTPS] Request failed, HTTP error code: %d, %s\n", httpCode, https.errorToString(httpCode).c_str());
+			return emptyDoc;
 		}
 
 		https.end();
     } else {
     	Serial.printf("[HTTPS] Unable to connect\n");
+		return emptyDoc;
     }
 }
 
@@ -160,21 +168,25 @@ void handleRoot()
 
 void startDevicelogin() {
 	Serial.println("startDevicelogin()");
-	DynamicJsonDocument doc = requestJsonApi("https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/devicecode");
+	const size_t capacity = JSON_OBJECT_SIZE(6) + 540;
+	DynamicJsonDocument doc = requestJsonApi("https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/devicecode", "client_id=3837bbf0-30fb-47ad-bce8-f460ba9880c3&scope=offline_access%20openid", capacity);
 
 	// Save device_code and user_code
-	device_code = doc["device_code"];
-	user_code = doc["user_code"];
+	const char* _device_code = doc["device_code"];
+	const char* _user_code = doc["user_code"];
+	const char* _verification_uri = doc["verification_uri"];
+	const char* _message = doc["message"];
+
+	device_code = String(_device_code);
+	user_code = String(_user_code);
 	interval = doc["interval"].as<unsigned int>();
-	const char* verification_uri = doc["verification_uri"];
-	const char* message = doc["message"];
 
 	// Prepare response JSON
-	const int capacity = JSON_OBJECT_SIZE(3);
-	StaticJsonDocument<capacity> responseDoc;
-	responseDoc["user_code"] = user_code;
-	responseDoc["verification_uri"] = verification_uri;
-	responseDoc["message"] = message;
+	const int responseCapacity = JSON_OBJECT_SIZE(3);
+	StaticJsonDocument<responseCapacity> responseDoc;
+	responseDoc["user_code"] = _user_code;
+	responseDoc["verification_uri"] = _verification_uri;
+	responseDoc["message"] = _message;
 
 	// Serial.println(doc.as<String>());
 	// Serial.println(responseDoc.as<String>());
@@ -184,6 +196,17 @@ void startDevicelogin() {
 
 	// Send response
 	server.send(200, "application/json", responseDoc.as<String>());
+}
+
+
+// Poll for token
+void pollForToken() {
+	Serial.printf("device_code: %s\n", device_code.c_str());
+	String payload = "client_id=3837bbf0-30fb-47ad-bce8-f460ba9880c3&grant_type=urn:ietf:params:oauth:grant-type:device_code&device_code=" + device_code;
+	Serial.printf("Send polling request: %s\n", payload.c_str());
+	const size_t capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(7) + 530;
+	DynamicJsonDocument responseDoc = requestJsonApi("https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/token", payload, capacity);
+	Serial.println(responseDoc.as<String>());
 }
 
 
@@ -229,25 +252,17 @@ void loop()
 		Serial.println("Waiting for requests ...");
 		// Serial.setDebugOutput(true);
 
-		// DynamicJsonDocument doc = requestJsonApi("https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/devicecode");
-
-		// device_code = doc["device_code"];
-		// Serial.printf("Device code: %s\n", device_code);
-		// user_code = doc["user_code"];
-		// Serial.printf("User code: %s\n", user_code);
-
 		wifiIsConnected = false;
 	}
 
 	// Statemachine: Devicelogin started
 	if (state == SMODEDEVICELOGINSTARTED) {
 		if (millis() >= tsTokenPolling) {
+			Serial.println("Polling for token ...");
+			pollForToken();
 			tsTokenPolling = millis() + (interval * 1000);
-			Serial.println("Polling for token");
 		}
 	}
-
-
 
 	// Update laststate
 	if (laststate != state) {
