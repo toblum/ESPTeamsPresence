@@ -71,6 +71,7 @@ String availability = "";
 String activity = "";
 
 #define DEFAULT_POLLING_PRESENCE_INTERVAL 15	// Default interval to poll for presence info (seconds)
+#define DEFAULT_ERROR_RETRY_INTERVAL 30			// Default interval to try again after errors
 
 // Statemachine
 #define SMODEINITIAL 0          // Initial
@@ -80,6 +81,8 @@ String activity = "";
 #define SMODEDEVICELOGINFAILED 11    // Device login flow failed
 #define SMODEAUTHREADY 20            // Authentication successful
 #define SMODEPOLLPRESENCE 21         // Poll for presence
+#define SMODEREFRESHTOKEN 22          // Access token needs refresh
+#define SMODEPRESENCEREQUESTERROR 23       // Access token needs refresh
 int state = SMODEINITIAL;
 int laststate = SMODEINITIAL;
 static unsigned long tsPolling = 0;
@@ -232,7 +235,7 @@ void handleStartDevicelogin() {
 // Poll for token
 void pollForToken() {
 	String payload = "client_id=3837bbf0-30fb-47ad-bce8-f460ba9880c3&grant_type=urn:ietf:params:oauth:grant-type:device_code&device_code=" + device_code;
-	Serial.printf("pollForToken(): %s\n", payload.c_str());
+	Serial.printf("pollForToken() - %s\n", payload.c_str());
 
 	// const size_t capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(7) + 530; // Case 1: HTTP 400 error (not yet ready)
 	const size_t capacity = JSON_OBJECT_SIZE(7) + 4090; // Case 2: Successful (bigger size of both variants, so take that one as capacity)
@@ -244,10 +247,10 @@ void pollForToken() {
 		const char* _error_description = responseDoc["error_description"];
 
 		if (strcmp(_error, "authorization_pending") == 0) {
-			Serial.printf("Wating for authorization by user: %s", _error_description);
+			Serial.printf("pollForToken() - Wating for authorization by user: %s", _error_description);
 		} else {
 			const char* _error_description = responseDoc["error_description"];
-			Serial.printf("Unexpected error: %s, %s", _error, _error_description);
+			Serial.printf("pollForToken() - Unexpected error: %s, %s", _error, _error_description);
 			state = SMODEDEVICELOGINFAILED;
 		}
 	} else {
@@ -274,13 +277,52 @@ void pollPresence() {
 	const size_t capacity = JSON_OBJECT_SIZE(4) + 220;
 	DynamicJsonDocument responseDoc = requestJsonApi("https://graph.microsoft.com/beta/me/presence", "", capacity, "GET", true);
 
-	// Get data from response
-	const char* _availability = responseDoc["availability"];
-	const char* _activity = responseDoc["activity"];
+	if (responseDoc.containsKey("error")) {
+		const char* _error_code = responseDoc["error"]["code"];
+		if (strcmp(_error_code, "InvalidAuthenticationToken")) {
+			Serial.println("pollPresence() - Refresh needed");
+			tsPolling = millis();
+			state = SMODEREFRESHTOKEN;
+		} else {
+			Serial.printf("pollPresence() - Error: %s\n", _error_code);
+			state = SMODEPRESENCEREQUESTERROR;
+		}
+	} else {
+		// Get data from response
+		const char* _availability = responseDoc["availability"];
+		const char* _activity = responseDoc["activity"];
 
-	// Save presence info
-	availability = String(_availability);
-	activity = String(_activity);
+		// Save presence info
+		availability = String(_availability);
+		activity = String(_activity);
+	}
+}
+
+
+void refreshToken() {
+	// See: https://docs.microsoft.com/de-de/azure/active-directory/develop/v1-protocols-oauth-code#refreshing-the-access-tokens
+	String payload = "client_id=3837bbf0-30fb-47ad-bce8-f460ba9880c3&grant_type=refresh_token&refresh_token=" + refresh_token;
+	Serial.println("refreshToken()");
+
+	const size_t capacity = JSON_OBJECT_SIZE(7) + 4110;
+	DynamicJsonDocument responseDoc = requestJsonApi("https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/token", payload, capacity);
+
+	// Replace tokens and expiration
+	if (responseDoc.containsKey("access_token") && responseDoc.containsKey("refresh_token") && responseDoc.containsKey("id_token")) {
+		access_token = responseDoc["access_token"].as<String>();
+		refresh_token = responseDoc["refresh_token"].as<String>();
+		id_token = responseDoc["id_token"].as<String>();
+		int _expires_in = responseDoc["expires_in"].as<unsigned int>();
+		expires = millis() + (_expires_in * 1000); // Calculate timestamp when token expires
+
+		Serial.println("refreshToken() - Success");
+		state = SMODEPOLLPRESENCE;
+	} else {
+		Serial.println("refreshToken() - Error:");
+		Serial.println(responseDoc.as<String>());
+		// Set retry after timeout
+		tsPolling = millis() + (DEFAULT_ERROR_RETRY_INTERVAL * 1000);
+	}
 }
 
 
@@ -304,9 +346,6 @@ void setup()
 	state = SMODEWIFICONNECTING;
 	iotWebConf.init();
 
-	// // Configure HTTP client
-	// client.setInsecure();
-
 	// HTTP server - Set up required URL handlers on the web server.
 	server.on("/", handleRoot);
 	server.on("/startDevicelogin", [] { handleStartDevicelogin(); });
@@ -321,7 +360,7 @@ void loop()
 	// iotWebConf - doLoop should be called as frequently as possible.
 	iotWebConf.doLoop();
 
-	// After wifi is connected
+	// Statemachine: After wifi is connected
 	if (state == SMODEWIFICONNECTED && laststate != SMODEWIFICONNECTED)
 	{
 		// WiFi client
@@ -341,12 +380,11 @@ void loop()
 	// Statemachine: Devicelogin failed
 	if (state == SMODEDEVICELOGINFAILED) {
 		Serial.println("Device login failed");
-		state = SMODEWIFICONNECTED;
+		state = SMODEWIFICONNECTED;	// Return back to initial mode
 	}
 
-	// Statemachine: Auth is ready, start polling for presence
+	// Statemachine: Auth is ready, start polling for presence immedately
 	if (state == SMODEAUTHREADY) {
-		// Set to poll immedately
 		state = SMODEPOLLPRESENCE;
 		tsPolling = millis();
 	}
@@ -358,6 +396,13 @@ void loop()
 			pollPresence();
 			tsPolling = millis() + (DEFAULT_POLLING_PRESENCE_INTERVAL * 1000);
 			Serial.printf("--> Availability: %s, Activity: %s\n", availability.c_str(), activity.c_str());
+		}
+	}
+
+	// Statemachine: Refresh token
+	if (state == SMODEREFRESHTOKEN) {
+		if (millis() >= tsPolling) {
+			refreshToken();
 		}
 	}
 
