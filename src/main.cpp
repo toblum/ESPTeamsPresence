@@ -195,33 +195,28 @@ void handleStartDevicelogin() {
 		const size_t capacity = JSON_OBJECT_SIZE(6) + 540;
 		DynamicJsonDocument doc = requestJsonApi("https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/devicecode", "client_id=3837bbf0-30fb-47ad-bce8-f460ba9880c3&scope=offline_access%20openid", capacity);
 
-		// Get data from response
-		const char* _device_code = doc["device_code"];
-		const char* _user_code = doc["user_code"];
-		const char* _verification_uri = doc["verification_uri"];
-		const char* _message = doc["message"];
+		if (doc.containsKey("device_code") && doc.containsKey("user_code") && doc.containsKey("interval") && doc.containsKey("verification_uri") && doc.containsKey("message")) {
+			// Save device_code, user_code and interval
+			device_code = doc["device_code"].as<String>();
+			user_code = doc["user_code"].as<String>();
+			interval = doc["interval"].as<unsigned int>();
 
-		// Save device_code, user_code and interval
-		device_code = String(_device_code);
-		user_code = String(_user_code);
-		interval = doc["interval"].as<unsigned int>();
+			// Prepare response JSON
+			const int responseCapacity = JSON_OBJECT_SIZE(3);
+			StaticJsonDocument<responseCapacity> responseDoc;
+			responseDoc["user_code"] = doc["user_code"].as<const char*>();
+			responseDoc["verification_uri"] = doc["verification_uri"].as<const char*>();
+			responseDoc["message"] = doc["message"].as<const char*>();
 
-		// Prepare response JSON
-		const int responseCapacity = JSON_OBJECT_SIZE(3);
-		StaticJsonDocument<responseCapacity> responseDoc;
-		responseDoc["user_code"] = _user_code;
-		responseDoc["verification_uri"] = _verification_uri;
-		responseDoc["message"] = _message;
+			// Set state, update polling timestamp
+			state = SMODEDEVICELOGINSTARTED;
+			tsPolling = millis() + (interval * 1000);
 
-		// Serial.println(doc.as<String>());
-		// Serial.println(responseDoc.as<String>());
-
-		// Set state, update polling timestamp
-		state = SMODEDEVICELOGINSTARTED;
-		tsPolling = millis() + (interval * 1000);
-
-		// Send JSON response
-		server.send(200, "application/json", responseDoc.as<String>());
+			// Send JSON response
+			server.send(200, "application/json", responseDoc.as<String>());
+		} else {
+			server.send(500, "application/json", F("{\"error\": \"devicelogin_unknown_response\"}"));
+		}
 	} else {
 		server.send(409, "application/json", F("{\"error\": \"devicelogin_already_running\"}"));
 	}
@@ -249,25 +244,23 @@ void pollForToken() {
 		if (strcmp(_error, "authorization_pending") == 0) {
 			Serial.printf("pollForToken() - Wating for authorization by user: %s", _error_description);
 		} else {
-			const char* _error_description = responseDoc["error_description"];
 			Serial.printf("pollForToken() - Unexpected error: %s, %s", _error, _error_description);
 			state = SMODEDEVICELOGINFAILED;
 		}
 	} else {
-		// Get data from response
-		const char* _access_token = responseDoc["access_token"];
-		const char* _refresh_token = responseDoc["refresh_token"];
-		const char* _id_token = responseDoc["id_token"];
-		const int _expires_in = responseDoc["expires_in"].as<unsigned int>();
+		if (responseDoc.containsKey("access_token") && responseDoc.containsKey("refresh_token") && responseDoc.containsKey("id_token")) {
+			// Save tokens and expiration
+			access_token = responseDoc["access_token"].as<String>();
+			refresh_token = responseDoc["refresh_token"].as<String>();
+			id_token = responseDoc["id_token"].as<String>();
+			int _expires_in = responseDoc["expires_in"].as<unsigned int>();
+			expires = millis() + (_expires_in * 1000); // Calculate timestamp when token expires
 
-		// Save tokens and expiration
-		access_token = String(_access_token);
-		refresh_token = String(_refresh_token);
-		id_token = String(_id_token);
-		expires = millis() + (_expires_in * 1000); // Calculate timestamp when token expires
-
-		// Set state
-		state = SMODEAUTHREADY;
+			// Set state
+			state = SMODEAUTHREADY;
+		} else {
+			Serial.printf("pollForToken() - Unknown response: %s\n", responseDoc.as<const char*>());
+		}
 	}
 }
 
@@ -288,13 +281,9 @@ void pollPresence() {
 			state = SMODEPRESENCEREQUESTERROR;
 		}
 	} else {
-		// Get data from response
-		const char* _availability = responseDoc["availability"];
-		const char* _activity = responseDoc["activity"];
-
 		// Save presence info
-		availability = String(_availability);
-		activity = String(_activity);
+		availability =  responseDoc["availability"].as<String>();
+		activity =  responseDoc["activity"].as<String>();
 	}
 }
 
@@ -409,5 +398,6 @@ void loop()
 	// Update laststate
 	if (laststate != state) {
 		laststate = state;
+		Serial.println("======================================================================");
 	}
 }
