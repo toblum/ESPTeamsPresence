@@ -70,6 +70,7 @@ unsigned int interval = 5;
 #define SMODEWIFICONNECTING 1   // Wait for wifi connection
 #define SMODEWIFICONNECTED 2    // Wifi connected
 #define SMODEDEVICELOGINSTARTED 10   // Device login flow was started
+#define SMODEAUTHDONE 11             // Device login flow was started
 int state = SMODEINITIAL;
 int laststate = SMODEINITIAL;
 static unsigned long tsTokenPolling = 0;
@@ -83,22 +84,23 @@ void wifiConnected()
 }
 
 
-// API Helper
+// API request helper
 DynamicJsonDocument requestJsonApi(String url, String payload = "", size_t capacity = 0, String type = "POST") {
+	// WiFiClient
 	std::unique_ptr<BearSSL::WiFiClientSecure>client(new BearSSL::WiFiClientSecure);
 	client->setInsecure();
 
+	// HTTPClient
 	HTTPClient https;
 
-	// Empty response
+	// Prepare empty response
 	const int emptyCapacity = JSON_OBJECT_SIZE(1);
 	DynamicJsonDocument emptyDoc(emptyCapacity);
 
 	Serial.print("[HTTPS] begin...\n");
     if (https.begin(*client, url)) {  // HTTPS
 
-		Serial.printf("[HTTPS] %s ...\n", type.c_str());
-		// start connection and send HTTP header
+		// Start connection and send HTTP header
 		int httpCode = 0;
 		if (type == "POST") {
 			httpCode = https.POST(payload);
@@ -109,12 +111,11 @@ DynamicJsonDocument requestJsonApi(String url, String payload = "", size_t capac
 		// httpCode will be negative on error
 		if (httpCode > 0) {
 			// HTTP header has been send and Server response header has been handled
-			Serial.printf("[HTTPS] %s ... code: %d\n", type.c_str(), httpCode);
+			Serial.printf("[HTTPS] Method: %s, Response code: %d\n", type.c_str(), httpCode);
 
-			// File found at server (200, 301 or 400)
+			// File found at server (HTTP 200, 301), or HTTP 400 with response payload
 			if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY || httpCode == HTTP_CODE_BAD_REQUEST) {
 				Stream& responseStream = https.getStream();
-				Serial.printf("[HTTPS] Got HTTP stream\n");
 
 				// Allocate the JSON document
 				// Use arduinojson.org/v6/assistant to compute the capacity.
@@ -125,24 +126,25 @@ DynamicJsonDocument requestJsonApi(String url, String payload = "", size_t capac
 				if (error) {
 					Serial.print(F("deserializeJson() failed: "));
 					Serial.println(error.c_str());
+					Serial.println(https.getString());
 					return emptyDoc;
 				} else {
 					return doc;
 				}
 			} else {
-				Serial.print("[HTTPS] Result: ");
+				Serial.printf("[HTTPS] Other HTTP code: %d\nResponse: ", httpCode);
 				Serial.println(https.getString());
 			}
 		} else {
-			Serial.printf("[HTTPS] Request failed, HTTP error code: %d, %s\n", httpCode, https.errorToString(httpCode).c_str());
+			Serial.printf("[HTTPS] Request failed: %s\n", https.errorToString(httpCode).c_str());
 			return emptyDoc;
 		}
 
 		https.end();
     } else {
     	Serial.printf("[HTTPS] Unable to connect\n");
-		return emptyDoc;
     }
+	return emptyDoc;
 }
 
 
@@ -150,8 +152,11 @@ DynamicJsonDocument requestJsonApi(String url, String payload = "", size_t capac
 /**
  * Handle web requests 
  */
+
+// Requests to /
 void handleRoot()
 {
+	Serial.println("handleRoot()");
 	// -- Let IotWebConf test and handle captive portal requests.
 	if (iotWebConf.handleCaptivePortal())
 	{
@@ -166,17 +171,21 @@ void handleRoot()
 	server.send(200, "text/html", s);
 }
 
-void startDevicelogin() {
-	Serial.println("startDevicelogin()");
+// Requests to /startDevicelogin
+void handleStartDevicelogin() {
+	Serial.println("handleStartDevicelogin()");
+
+	// Request devicelogin context
 	const size_t capacity = JSON_OBJECT_SIZE(6) + 540;
 	DynamicJsonDocument doc = requestJsonApi("https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/devicecode", "client_id=3837bbf0-30fb-47ad-bce8-f460ba9880c3&scope=offline_access%20openid", capacity);
 
-	// Save device_code and user_code
+	// Get data from response
 	const char* _device_code = doc["device_code"];
 	const char* _user_code = doc["user_code"];
 	const char* _verification_uri = doc["verification_uri"];
 	const char* _message = doc["message"];
 
+	// Save device_code, user_code and interval
 	device_code = String(_device_code);
 	user_code = String(_user_code);
 	interval = doc["interval"].as<unsigned int>();
@@ -191,31 +200,43 @@ void startDevicelogin() {
 	// Serial.println(doc.as<String>());
 	// Serial.println(responseDoc.as<String>());
 
+	// Set state, update polling timestamp
 	state = SMODEDEVICELOGINSTARTED;
 	tsTokenPolling = millis() + (interval * 1000);
 
-	// Send response
+	// Send JSON response
 	server.send(200, "application/json", responseDoc.as<String>());
 }
 
 
+/**
+ * Application logic
+ */
+
 // Poll for token
 void pollForToken() {
-	Serial.printf("device_code: %s\n", device_code.c_str());
 	String payload = "client_id=3837bbf0-30fb-47ad-bce8-f460ba9880c3&grant_type=urn:ietf:params:oauth:grant-type:device_code&device_code=" + device_code;
-	Serial.printf("Send polling request: %s\n", payload.c_str());
-	const size_t capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(7) + 530;
+	Serial.printf("pollForToken(): %s\n", payload.c_str());
+
+	// const size_t capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(7) + 530; // Case 1: HTTP 400 error (not yet ready)
+	const size_t capacity = JSON_OBJECT_SIZE(7) + 4090; // Case 2: Successful (bigger size of both variants, so take that one as capacity)
 	DynamicJsonDocument responseDoc = requestJsonApi("https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/token", payload, capacity);
-	Serial.println(responseDoc.as<String>());
+	// Serial.println(responseDoc.as<String>());
+
+	// Set state
+	state = SMODEAUTHDONE;
 }
 
 
 
+/**
+ * Main functions
+ */
 void setup()
 {
 	Serial.begin(115200);
 	Serial.println();
-	Serial.println("Starting up...");
+	Serial.println("setup() Starting up...");
 
 	// -- Initializing the configuration.
 	iotWebConf.setStatusPin(STATUS_PIN);
@@ -232,11 +253,11 @@ void setup()
 
 	// -- Set up required URL handlers on the web server.
 	server.on("/", handleRoot);
-	server.on("/startDevicelogin", [] { startDevicelogin(); });
+	server.on("/startDevicelogin", [] { handleStartDevicelogin(); });
 	server.on("/config", [] { iotWebConf.handleConfig(); });
 	server.onNotFound([]() { iotWebConf.handleNotFound(); });
 
-	Serial.println("Ready.");
+	Serial.println("setup() ready...");
 }
 
 void loop()
