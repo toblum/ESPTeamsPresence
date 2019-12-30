@@ -47,7 +47,6 @@ DNSServer dnsServer;
 WebServer server(80);
 
 IotWebConf iotWebConf(thingName, &dnsServer, &server, wifiInitialApPassword);
-boolean wifiIsConnected = false;
 
 // Add parameter
 #define STRING_LEN 128
@@ -75,7 +74,8 @@ unsigned int expires = 0;
 #define SMODEWIFICONNECTING 1   // Wait for wifi connection
 #define SMODEWIFICONNECTED 2    // Wifi connected
 #define SMODEDEVICELOGINSTARTED 10   // Device login flow was started
-#define SMODEAUTHDONE 11             // Device login flow was started
+#define SMODEDEVICELOGINFAILED 11    // Device login flow failed
+#define SMODEAUTHDONE 20             // Device login flow was started
 int state = SMODEINITIAL;
 int laststate = SMODEINITIAL;
 static unsigned long tsTokenPolling = 0;
@@ -84,7 +84,6 @@ static unsigned long tsTokenPolling = 0;
 
 void wifiConnected()
 {
-	wifiIsConnected = true;
 	state = SMODEWIFICONNECTED;
 }
 
@@ -163,14 +162,12 @@ void handleRoot()
 {
 	Serial.println("handleRoot()");
 	// -- Let IotWebConf test and handle captive portal requests.
-	if (iotWebConf.handleCaptivePortal())
-	{
-		// -- Captive portal request were already served.
-		return;
-	}
+	if (iotWebConf.handleCaptivePortal()) { return; }
+
 	String s = "<!DOCTYPE html>\n<html lang=\"en\">\n<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/>";
-	s += "<title>IotWebConf 01 Minimal</title></head>\n<body>Hello world!";
-	s += "Go to <a href=\"config\">configure page</a> to change settings.";
+	s += "<title>IotWebConf 01 Minimal</title></head>\n<body><h2>Hello world!</h2>";
+	s += "Go to <a href=\"config\">configure page</a> to change settings.<br/>";
+	s += "Start <a href=\"startDevicelogin\">device login</a> flow.";
 	s += "</body>\n</html>\n";
 
 	server.send(200, "text/html", s);
@@ -178,39 +175,44 @@ void handleRoot()
 
 // Requests to /startDevicelogin
 void handleStartDevicelogin() {
-	Serial.println("handleStartDevicelogin()");
+	// Only if not already started
+	if (state != SMODEDEVICELOGINSTARTED) {
+		Serial.println("handleStartDevicelogin()");
 
-	// Request devicelogin context
-	const size_t capacity = JSON_OBJECT_SIZE(6) + 540;
-	DynamicJsonDocument doc = requestJsonApi("https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/devicecode", "client_id=3837bbf0-30fb-47ad-bce8-f460ba9880c3&scope=offline_access%20openid", capacity);
+		// Request devicelogin context
+		const size_t capacity = JSON_OBJECT_SIZE(6) + 540;
+		DynamicJsonDocument doc = requestJsonApi("https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/devicecode", "client_id=3837bbf0-30fb-47ad-bce8-f460ba9880c3&scope=offline_access%20openid", capacity);
 
-	// Get data from response
-	const char* _device_code = doc["device_code"];
-	const char* _user_code = doc["user_code"];
-	const char* _verification_uri = doc["verification_uri"];
-	const char* _message = doc["message"];
+		// Get data from response
+		const char* _device_code = doc["device_code"];
+		const char* _user_code = doc["user_code"];
+		const char* _verification_uri = doc["verification_uri"];
+		const char* _message = doc["message"];
 
-	// Save device_code, user_code and interval
-	device_code = String(_device_code);
-	user_code = String(_user_code);
-	interval = doc["interval"].as<unsigned int>();
+		// Save device_code, user_code and interval
+		device_code = String(_device_code);
+		user_code = String(_user_code);
+		interval = doc["interval"].as<unsigned int>();
 
-	// Prepare response JSON
-	const int responseCapacity = JSON_OBJECT_SIZE(3);
-	StaticJsonDocument<responseCapacity> responseDoc;
-	responseDoc["user_code"] = _user_code;
-	responseDoc["verification_uri"] = _verification_uri;
-	responseDoc["message"] = _message;
+		// Prepare response JSON
+		const int responseCapacity = JSON_OBJECT_SIZE(3);
+		StaticJsonDocument<responseCapacity> responseDoc;
+		responseDoc["user_code"] = _user_code;
+		responseDoc["verification_uri"] = _verification_uri;
+		responseDoc["message"] = _message;
 
-	// Serial.println(doc.as<String>());
-	// Serial.println(responseDoc.as<String>());
+		// Serial.println(doc.as<String>());
+		// Serial.println(responseDoc.as<String>());
 
-	// Set state, update polling timestamp
-	state = SMODEDEVICELOGINSTARTED;
-	tsTokenPolling = millis() + (interval * 1000);
+		// Set state, update polling timestamp
+		state = SMODEDEVICELOGINSTARTED;
+		tsTokenPolling = millis() + (interval * 1000);
 
-	// Send JSON response
-	server.send(200, "application/json", responseDoc.as<String>());
+		// Send JSON response
+		server.send(200, "application/json", responseDoc.as<String>());
+	} else {
+		server.send(409, "application/json", F("{\"error\": \"devicelogin_already_running\"}"));
+	}
 }
 
 
@@ -228,20 +230,36 @@ void pollForToken() {
 	DynamicJsonDocument responseDoc = requestJsonApi("https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/token", payload, capacity);
 	// Serial.println(responseDoc.as<String>());
 
-	// Get data from response
-	const char* _access_token = responseDoc["access_token"];
-	const char* _refresh_token = responseDoc["refresh_token"];
-	const char* _id_token = responseDoc["id_token"];
-	const int _expires_in = responseDoc["expires_in"].as<unsigned int>();
+	const char* _error = responseDoc["error"];
+	const char* _error_description = responseDoc["error_description"];
+	if (strcmp(_error, "authorization_pending") == 0) {
 
-	// Save tokens and expiration
-	access_token = String(_access_token);
-	refresh_token = String(_refresh_token);
-	refresh_token = String(_refresh_token);
-	expires = millis() + (_expires_in * 1000); // Calculate timestamp when token expires
+		Serial.printf("Wating for authorization by user: %s", _error_description);
 
-	// Set state
-	state = SMODEAUTHDONE;
+	} else if (strlen(_error) > 0) {
+
+		const char* _error_description = responseDoc["error_description"];
+		Serial.printf("Unexpected error: %s, %s", _error, _error_description);
+		state = SMODEDEVICELOGINFAILED;
+
+	} else {
+
+		// Get data from response
+		const char* _access_token = responseDoc["access_token"];
+		const char* _refresh_token = responseDoc["refresh_token"];
+		const char* _id_token = responseDoc["id_token"];
+		const int _expires_in = responseDoc["expires_in"].as<unsigned int>();
+
+		// Save tokens and expiration
+		access_token = String(_access_token);
+		refresh_token = String(_refresh_token);
+		id_token = String(_id_token);
+		expires = millis() + (_expires_in * 1000); // Calculate timestamp when token expires
+
+		// Set state
+		state = SMODEAUTHDONE;
+
+	}
 }
 
 
@@ -255,7 +273,7 @@ void setup()
 	Serial.println();
 	Serial.println("setup() Starting up...");
 
-	// -- Initializing the configuration.
+	// iotWebConf - Initializing the configuration.
 	iotWebConf.setStatusPin(STATUS_PIN);
 	iotWebConf.setWifiConnectionTimeoutMs(5000);
 	iotWebConf.addParameter(&stringParam);
@@ -265,10 +283,10 @@ void setup()
 	state = SMODEWIFICONNECTING;
 	iotWebConf.init();
 
-	// HTTP client
-	client.setInsecure();
+	// // Configure HTTP client
+	// client.setInsecure();
 
-	// -- Set up required URL handlers on the web server.
+	// HTTP server - Set up required URL handlers on the web server.
 	server.on("/", handleRoot);
 	server.on("/startDevicelogin", [] { handleStartDevicelogin(); });
 	server.on("/config", [] { iotWebConf.handleConfig(); });
@@ -279,18 +297,15 @@ void setup()
 
 void loop()
 {
-	// -- doLoop should be called as frequently as possible.
+	// iotWebConf - doLoop should be called as frequently as possible.
 	iotWebConf.doLoop();
 
 	// After wifi is connected
 	if (state == SMODEWIFICONNECTED && laststate != SMODEWIFICONNECTED)
 	{
 		// WiFi client
-		Serial.println("Wifi connected");
-		Serial.println("Waiting for requests ...");
+		Serial.println("Wifi connected, waiting for requests ...");
 		// Serial.setDebugOutput(true);
-
-		wifiIsConnected = false;
 	}
 
 	// Statemachine: Devicelogin started
@@ -300,6 +315,12 @@ void loop()
 			pollForToken();
 			tsTokenPolling = millis() + (interval * 1000);
 		}
+	}
+
+	// Statemachine: Devicelogin failed
+	if (state == SMODEDEVICELOGINFAILED) {
+		Serial.println("Device login failed");
+		state = SMODEWIFICONNECTED;
 	}
 
 	// Update laststate
