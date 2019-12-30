@@ -62,14 +62,24 @@ BearSSL::WiFiClientSecure client;
 // Global variables
 const char* user_code = "";
 const char* device_code = "";
+unsigned int interval = 5;
 
+// Statemachine
 
+#define SMODEINITIAL 0          // Initial
+#define SMODEWIFICONNECTING 1   // Wait for wifi connection
+#define SMODEWIFICONNECTED 2    // Wifi connected
+#define SMODEDEVICELOGINSTARTED 10   // Device login flow was started
+int state = SMODEINITIAL;
+int laststate = SMODEINITIAL;
+static unsigned long tsTokenPolling = 0;
 
 
 
 void wifiConnected()
 {
 	wifiIsConnected = true;
+	state = SMODEWIFICONNECTED;
 }
 
 
@@ -155,6 +165,7 @@ void startDevicelogin() {
 	// Save device_code and user_code
 	device_code = doc["device_code"];
 	user_code = doc["user_code"];
+	interval = doc["interval"].as<unsigned int>();
 	const char* verification_uri = doc["verification_uri"];
 	const char* message = doc["message"];
 
@@ -167,6 +178,9 @@ void startDevicelogin() {
 
 	// Serial.println(doc.as<String>());
 	// Serial.println(responseDoc.as<String>());
+
+	state = SMODEDEVICELOGINSTARTED;
+	tsTokenPolling = millis() + (interval * 1000);
 
 	// Send response
 	server.send(200, "application/json", responseDoc.as<String>());
@@ -187,6 +201,7 @@ void setup()
 	iotWebConf.addParameter(&separator1);
 	iotWebConf.getApTimeoutParameter()->visible = true;
 	iotWebConf.setWifiConnectionCallback(&wifiConnected);
+	state = SMODEWIFICONNECTING;
 	iotWebConf.init();
 
 	// HTTP client
@@ -206,10 +221,12 @@ void loop()
 	// -- doLoop should be called as frequently as possible.
 	iotWebConf.doLoop();
 
-	if (wifiIsConnected)
+	// After wifi is connected
+	if (state == SMODEWIFICONNECTED && laststate != SMODEWIFICONNECTED)
 	{
 		// WiFi client
-		Serial.println("REQUEST");
+		Serial.println("Wifi connected");
+		Serial.println("Waiting for requests ...");
 		// Serial.setDebugOutput(true);
 
 		// DynamicJsonDocument doc = requestJsonApi("https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/devicecode");
@@ -220,5 +237,20 @@ void loop()
 		// Serial.printf("User code: %s\n", user_code);
 
 		wifiIsConnected = false;
+	}
+
+	// Statemachine: Devicelogin started
+	if (state == SMODEDEVICELOGINSTARTED) {
+		if (millis() >= tsTokenPolling) {
+			tsTokenPolling = millis() + (interval * 1000);
+			Serial.println("Polling for token");
+		}
+	}
+
+
+
+	// Update laststate
+	if (laststate != state) {
+		laststate = state;
 	}
 }
