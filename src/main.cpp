@@ -57,7 +57,6 @@ IotWebConfSeparator separator1 = IotWebConfSeparator();
 // HTTP client
 BearSSL::WiFiClientSecure client;
 
-
 // Global variables
 String user_code = "";
 String device_code = "";
@@ -68,17 +67,22 @@ String refresh_token = "";
 String id_token = "";
 unsigned int expires = 0;
 
-// Statemachine
+String availability = "";
+String activity = "";
 
+#define DEFAULT_POLLING_PRESENCE_INTERVAL 15	// Default interval to poll for presence info (seconds)
+
+// Statemachine
 #define SMODEINITIAL 0          // Initial
 #define SMODEWIFICONNECTING 1   // Wait for wifi connection
 #define SMODEWIFICONNECTED 2    // Wifi connected
 #define SMODEDEVICELOGINSTARTED 10   // Device login flow was started
 #define SMODEDEVICELOGINFAILED 11    // Device login flow failed
-#define SMODEAUTHDONE 20             // Device login flow was started
+#define SMODEAUTHREADY 20            // Authentication successful
+#define SMODEPOLLPRESENCE 21         // Poll for presence
 int state = SMODEINITIAL;
 int laststate = SMODEINITIAL;
-static unsigned long tsTokenPolling = 0;
+static unsigned long tsPolling = 0;
 
 
 
@@ -89,7 +93,7 @@ void wifiConnected()
 
 
 // API request helper
-DynamicJsonDocument requestJsonApi(String url, String payload = "", size_t capacity = 0, String type = "POST") {
+DynamicJsonDocument requestJsonApi(String url, String payload = "", size_t capacity = 0, String type = "POST", boolean sendAuth = false) {
 	// WiFiClient
 	std::unique_ptr<BearSSL::WiFiClientSecure>client(new BearSSL::WiFiClientSecure);
 	client->setInsecure();
@@ -101,8 +105,13 @@ DynamicJsonDocument requestJsonApi(String url, String payload = "", size_t capac
 	const int emptyCapacity = JSON_OBJECT_SIZE(1);
 	DynamicJsonDocument emptyDoc(emptyCapacity);
 
-	Serial.print("[HTTPS] begin...\n");
+	// Serial.print("[HTTPS] begin...\n");
     if (https.begin(*client, url)) {  // HTTPS
+
+		// Send auth header?
+		if (sendAuth) {
+			https.addHeader("Authorization", "Bearer " + access_token);
+		}
 
 		// Start connection and send HTTP header
 		int httpCode = 0;
@@ -206,7 +215,7 @@ void handleStartDevicelogin() {
 
 		// Set state, update polling timestamp
 		state = SMODEDEVICELOGINSTARTED;
-		tsTokenPolling = millis() + (interval * 1000);
+		tsPolling = millis() + (interval * 1000);
 
 		// Send JSON response
 		server.send(200, "application/json", responseDoc.as<String>());
@@ -230,20 +239,18 @@ void pollForToken() {
 	DynamicJsonDocument responseDoc = requestJsonApi("https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/token", payload, capacity);
 	// Serial.println(responseDoc.as<String>());
 
-	const char* _error = responseDoc["error"];
-	const char* _error_description = responseDoc["error_description"];
-	if (strcmp(_error, "authorization_pending") == 0) {
-
-		Serial.printf("Wating for authorization by user: %s", _error_description);
-
-	} else if (strlen(_error) > 0) {
-
+	if (responseDoc.containsKey("error")) {
+		const char* _error = responseDoc["error"];
 		const char* _error_description = responseDoc["error_description"];
-		Serial.printf("Unexpected error: %s, %s", _error, _error_description);
-		state = SMODEDEVICELOGINFAILED;
 
+		if (strcmp(_error, "authorization_pending") == 0) {
+			Serial.printf("Wating for authorization by user: %s", _error_description);
+		} else {
+			const char* _error_description = responseDoc["error_description"];
+			Serial.printf("Unexpected error: %s, %s", _error, _error_description);
+			state = SMODEDEVICELOGINFAILED;
+		}
 	} else {
-
 		// Get data from response
 		const char* _access_token = responseDoc["access_token"];
 		const char* _refresh_token = responseDoc["refresh_token"];
@@ -257,9 +264,23 @@ void pollForToken() {
 		expires = millis() + (_expires_in * 1000); // Calculate timestamp when token expires
 
 		// Set state
-		state = SMODEAUTHDONE;
-
+		state = SMODEAUTHREADY;
 	}
+}
+
+
+void pollPresence() {
+	// See: https://github.com/microsoftgraph/microsoft-graph-docs/blob/ananya/api-reference/beta/resources/presence.md
+	const size_t capacity = JSON_OBJECT_SIZE(4) + 220;
+	DynamicJsonDocument responseDoc = requestJsonApi("https://graph.microsoft.com/beta/me/presence", "", capacity, "GET", true);
+
+	// Get data from response
+	const char* _availability = responseDoc["availability"];
+	const char* _activity = responseDoc["activity"];
+
+	// Save presence info
+	availability = String(_availability);
+	activity = String(_activity);
 }
 
 
@@ -310,10 +331,10 @@ void loop()
 
 	// Statemachine: Devicelogin started
 	if (state == SMODEDEVICELOGINSTARTED) {
-		if (millis() >= tsTokenPolling) {
+		if (millis() >= tsPolling) {
 			Serial.println("Polling for token ...");
 			pollForToken();
-			tsTokenPolling = millis() + (interval * 1000);
+			tsPolling = millis() + (interval * 1000);
 		}
 	}
 
@@ -321,6 +342,23 @@ void loop()
 	if (state == SMODEDEVICELOGINFAILED) {
 		Serial.println("Device login failed");
 		state = SMODEWIFICONNECTED;
+	}
+
+	// Statemachine: Auth is ready, start polling for presence
+	if (state == SMODEAUTHREADY) {
+		// Set to poll immedately
+		state = SMODEPOLLPRESENCE;
+		tsPolling = millis();
+	}
+
+	// Statemachine: Poll for presence information
+	if (state == SMODEPOLLPRESENCE) {
+		if (millis() >= tsPolling) {
+			Serial.println("Polling presence info ...");
+			pollPresence();
+			tsPolling = millis() + (DEFAULT_POLLING_PRESENCE_INTERVAL * 1000);
+			Serial.printf("--> Availability: %s, Activity: %s\n", availability.c_str(), activity.c_str());
+		}
 	}
 
 	// Update laststate
