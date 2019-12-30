@@ -89,12 +89,6 @@ static unsigned long tsPolling = 0;
 
 
 
-void wifiConnected()
-{
-	state = SMODEWIFICONNECTED;
-}
-
-
 // API request helper
 DynamicJsonDocument requestJsonApi(String url, String payload = "", size_t capacity = 0, String type = "POST", boolean sendAuth = false) {
 	// WiFiClient
@@ -114,6 +108,7 @@ DynamicJsonDocument requestJsonApi(String url, String payload = "", size_t capac
 		// Send auth header?
 		if (sendAuth) {
 			https.addHeader("Authorization", "Bearer " + access_token);
+			Serial.printf("[HTTPS] Auth token valid for %d s.\n", getTokenLifetime());
 		}
 
 		// Start connection and send HTTP header
@@ -227,7 +222,19 @@ void handleStartDevicelogin() {
  * Application logic
  */
 
-// Poll for token
+// Handler: Wifi connected
+void onWifiConnected() {
+	state = SMODEWIFICONNECTED;
+}
+
+
+// Calculate token lifetime
+int getTokenLifetime() {
+	(expires - millis()) / 1000;
+}
+
+
+// Poll for access token
 void pollForToken() {
 	String payload = "client_id=3837bbf0-30fb-47ad-bce8-f460ba9880c3&grant_type=urn:ietf:params:oauth:grant-type:device_code&device_code=" + device_code;
 	Serial.printf("pollForToken() - %s\n", payload.c_str());
@@ -265,6 +272,7 @@ void pollForToken() {
 }
 
 
+// Get presence information
 void pollPresence() {
 	// See: https://github.com/microsoftgraph/microsoft-graph-docs/blob/ananya/api-reference/beta/resources/presence.md
 	const size_t capacity = JSON_OBJECT_SIZE(4) + 220;
@@ -288,6 +296,7 @@ void pollPresence() {
 }
 
 
+// Refresh the access token
 void refreshToken() {
 	// See: https://docs.microsoft.com/de-de/azure/active-directory/develop/v1-protocols-oauth-code#refreshing-the-access-tokens
 	String payload = "client_id=3837bbf0-30fb-47ad-bce8-f460ba9880c3&grant_type=refresh_token&refresh_token=" + refresh_token;
@@ -315,46 +324,13 @@ void refreshToken() {
 }
 
 
-
-/**
- * Main functions
- */
-void setup()
-{
-	Serial.begin(115200);
-	Serial.println();
-	Serial.println("setup() Starting up...");
-
-	// iotWebConf - Initializing the configuration.
-	iotWebConf.setStatusPin(STATUS_PIN);
-	iotWebConf.setWifiConnectionTimeoutMs(5000);
-	iotWebConf.addParameter(&stringParam);
-	iotWebConf.addParameter(&separator1);
-	iotWebConf.getApTimeoutParameter()->visible = true;
-	iotWebConf.setWifiConnectionCallback(&wifiConnected);
-	state = SMODEWIFICONNECTING;
-	iotWebConf.init();
-
-	// HTTP server - Set up required URL handlers on the web server.
-	server.on("/", handleRoot);
-	server.on("/startDevicelogin", [] { handleStartDevicelogin(); });
-	server.on("/config", [] { iotWebConf.handleConfig(); });
-	server.onNotFound([]() { iotWebConf.handleNotFound(); });
-
-	Serial.println("setup() ready...");
-}
-
-void loop()
-{
-	// iotWebConf - doLoop should be called as frequently as possible.
-	iotWebConf.doLoop();
-
+// Implementation of a statemachine to handle the different application states
+void statemachine() {
 	// Statemachine: After wifi is connected
 	if (state == SMODEWIFICONNECTED && laststate != SMODEWIFICONNECTED)
 	{
 		// WiFi client
 		Serial.println("Wifi connected, waiting for requests ...");
-		// Serial.setDebugOutput(true);
 	}
 
 	// Statemachine: Devicelogin started
@@ -400,4 +376,43 @@ void loop()
 		laststate = state;
 		Serial.println("======================================================================");
 	}
+}
+
+
+
+/**
+ * Main functions
+ */
+void setup()
+{
+	Serial.begin(115200);
+	Serial.println();
+	Serial.println("setup() Starting up...");
+	// Serial.setDebugOutput(true);
+
+	// iotWebConf - Initializing the configuration.
+	iotWebConf.setStatusPin(STATUS_PIN);
+	iotWebConf.setWifiConnectionTimeoutMs(5000);
+	iotWebConf.addParameter(&stringParam);
+	iotWebConf.addParameter(&separator1);
+	iotWebConf.getApTimeoutParameter()->visible = true;
+	iotWebConf.setWifiConnectionCallback(&onWifiConnected);
+	state = SMODEWIFICONNECTING;
+	iotWebConf.init();
+
+	// HTTP server - Set up required URL handlers on the web server.
+	server.on("/", handleRoot);
+	server.on("/api/startDevicelogin", [] { handleStartDevicelogin(); });
+	server.on("/config", [] { iotWebConf.handleConfig(); });
+	server.onNotFound([]() { iotWebConf.handleNotFound(); });
+
+	Serial.println("setup() ready...");
+}
+
+void loop()
+{
+	// iotWebConf - doLoop should be called as frequently as possible.
+	iotWebConf.doLoop();
+
+	statemachine();
 }
