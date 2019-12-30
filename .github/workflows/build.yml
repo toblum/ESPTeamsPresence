@@ -1,7 +1,6 @@
-name: Build via platform.io
+name: Build
 on: push
 
-name: Build
 
 jobs:
   main:
