@@ -70,13 +70,15 @@ unsigned int expires = 0;
 String availability = "";
 String activity = "";
 
+// Global settings
 #define DEFAULT_POLLING_PRESENCE_INTERVAL 15	// Default interval to poll for presence info (seconds)
 #define DEFAULT_ERROR_RETRY_INTERVAL 30			// Default interval to try again after errors
+#define TOKEN_REFRESH_TIMEOUT 60	 			// Number of seconds until expiration before token gets refreshed
 
 // Statemachine
-#define SMODEINITIAL 0          // Initial
-#define SMODEWIFICONNECTING 1   // Wait for wifi connection
-#define SMODEWIFICONNECTED 2    // Wifi connected
+#define SMODEINITIAL 0               // Initial
+#define SMODEWIFICONNECTING 1        // Wait for wifi connection
+#define SMODEWIFICONNECTED 2         // Wifi connected
 #define SMODEDEVICELOGINSTARTED 10   // Device login flow was started
 #define SMODEDEVICELOGINFAILED 11    // Device login flow failed
 #define SMODEAUTHREADY 20            // Authentication successful
@@ -89,7 +91,19 @@ static unsigned long tsPolling = 0;
 
 
 
-// API request helper
+/**
+ * Helper
+ */
+// Calculate token lifetime
+int getTokenLifetime() {
+	return (expires - millis()) / 1000;
+}
+
+
+
+/**
+ * API request helper
+ */
 DynamicJsonDocument requestJsonApi(String url, String payload = "", size_t capacity = 0, String type = "POST", boolean sendAuth = false) {
 	// WiFiClient
 	std::unique_ptr<BearSSL::WiFiClientSecure>client(new BearSSL::WiFiClientSecure);
@@ -227,17 +241,10 @@ void onWifiConnected() {
 	state = SMODEWIFICONNECTED;
 }
 
-
-// Calculate token lifetime
-int getTokenLifetime() {
-	(expires - millis()) / 1000;
-}
-
-
 // Poll for access token
 void pollForToken() {
 	String payload = "client_id=3837bbf0-30fb-47ad-bce8-f460ba9880c3&grant_type=urn:ietf:params:oauth:grant-type:device_code&device_code=" + device_code;
-	Serial.printf("pollForToken() - %s\n", payload.c_str());
+	Serial.printf("pollForToken()\n");
 
 	// const size_t capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(7) + 530; // Case 1: HTTP 400 error (not yet ready)
 	const size_t capacity = JSON_OBJECT_SIZE(7) + 4090; // Case 2: Successful (bigger size of both variants, so take that one as capacity)
@@ -249,9 +256,9 @@ void pollForToken() {
 		const char* _error_description = responseDoc["error_description"];
 
 		if (strcmp(_error, "authorization_pending") == 0) {
-			Serial.printf("pollForToken() - Wating for authorization by user: %s", _error_description);
+			Serial.printf("pollForToken() - Wating for authorization by user: %s\n\n", _error_description);
 		} else {
-			Serial.printf("pollForToken() - Unexpected error: %s, %s", _error, _error_description);
+			Serial.printf("pollForToken() - Unexpected error: %s, %s\n\n", _error, _error_description);
 			state = SMODEDEVICELOGINFAILED;
 		}
 	} else {
@@ -336,7 +343,6 @@ void statemachine() {
 	// Statemachine: Devicelogin started
 	if (state == SMODEDEVICELOGINSTARTED) {
 		if (millis() >= tsPolling) {
-			Serial.println("Polling for token ...");
 			pollForToken();
 			tsPolling = millis() + (interval * 1000);
 		}
@@ -360,7 +366,12 @@ void statemachine() {
 			Serial.println("Polling presence info ...");
 			pollPresence();
 			tsPolling = millis() + (DEFAULT_POLLING_PRESENCE_INTERVAL * 1000);
-			Serial.printf("--> Availability: %s, Activity: %s\n", availability.c_str(), activity.c_str());
+			Serial.printf("--> Availability: %s, Activity: %s\n\n", availability.c_str(), activity.c_str());
+		}
+
+		if (getTokenLifetime() < TOKEN_REFRESH_TIMEOUT) {
+			Serial.printf("Token needs refresh, valid for %d s.\n", getTokenLifetime());
+			state = SMODEREFRESHTOKEN;
 		}
 	}
 
