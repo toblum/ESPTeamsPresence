@@ -64,6 +64,11 @@ String user_code = "";
 String device_code = "";
 unsigned int interval = 5;
 
+String access_token = "";
+String refresh_token = "";
+String id_token = "";
+unsigned int expires = 0;
+
 // Statemachine
 
 #define SMODEINITIAL 0          // Initial
@@ -222,6 +227,18 @@ void pollForToken() {
 	const size_t capacity = JSON_OBJECT_SIZE(7) + 4090; // Case 2: Successful (bigger size of both variants, so take that one as capacity)
 	DynamicJsonDocument responseDoc = requestJsonApi("https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/token", payload, capacity);
 	// Serial.println(responseDoc.as<String>());
+
+	// Get data from response
+	const char* _access_token = responseDoc["access_token"];
+	const char* _refresh_token = responseDoc["refresh_token"];
+	const char* _id_token = responseDoc["id_token"];
+	const int _expires_in = responseDoc["expires_in"].as<unsigned int>();
+
+	// Save tokens and expiration
+	access_token = String(_access_token);
+	refresh_token = String(_refresh_token);
+	refresh_token = String(_refresh_token);
+	expires = millis() + (_expires_in * 1000); // Calculate timestamp when token expires
 
 	// Set state
 	state = SMODEAUTHDONE;
