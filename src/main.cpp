@@ -74,6 +74,7 @@ String activity = "";
 #define DEFAULT_POLLING_PRESENCE_INTERVAL 15	// Default interval to poll for presence info (seconds)
 #define DEFAULT_ERROR_RETRY_INTERVAL 30			// Default interval to try again after errors
 #define TOKEN_REFRESH_TIMEOUT 60	 			// Number of seconds until expiration before token gets refreshed
+#define CONTEXT_FILE "context.json"				// Filename of the context file
 
 // Statemachine
 #define SMODEINITIAL 0               // Initial
@@ -99,6 +100,64 @@ int getTokenLifetime() {
 	return (expires - millis()) / 1000;
 }
 
+// Save context information to file in SPIFFS
+void saveContext() {
+	const size_t capacity = JSON_OBJECT_SIZE(3);
+	DynamicJsonDocument contextDoc(capacity);
+	contextDoc["access_token"] = access_token;
+	contextDoc["refresh_token"] = refresh_token;
+	contextDoc["id_token"] = id_token;
+
+	File contextFile = SPIFFS.open(CONTEXT_FILE, "w");
+	serializeJsonPretty(contextDoc, contextFile);
+	contextFile.close();
+	Serial.printf("saveContext() - Success\n");
+}
+
+boolean loadContext() {
+	File file = SPIFFS.open(CONTEXT_FILE, "r");
+	boolean success = false;
+
+	if (!file) {
+		Serial.println("loadContext() - No file found");
+	} else {
+		size_t size = file.size();
+		if (size == 0) {
+			Serial.println("loadContext() - File empty");
+		} else {
+			const int capacity = JSON_OBJECT_SIZE(3) + 4000;
+			DynamicJsonDocument contextDoc(capacity);
+			DeserializationError err = deserializeJson(contextDoc, file);
+
+			if (err) {
+				Serial.print(F("loadContext() - deserializeJson() failed with code: "));
+				Serial.println(err.c_str());
+			} else {
+				int numSettings = 0;
+				if (!contextDoc["access_token"].isNull()) {
+					access_token = contextDoc["access_token"].as<String>();
+					numSettings++;
+				}
+				if (!contextDoc["refresh_token"].isNull()) {
+					refresh_token = contextDoc["refresh_token"].as<String>();
+					numSettings++;
+				}
+				if (!contextDoc["id_token"].isNull()){
+					id_token = contextDoc["id_token"].as<String>();
+					numSettings++;
+				}
+				if (numSettings == 3) {
+					state = SMODEREFRESHTOKEN;
+					success = true;
+					Serial.println("loadContext() - Success");
+				}
+			}
+		}
+		file.close();
+	}
+
+	return success;
+}
 
 
 /**
@@ -278,7 +337,6 @@ void pollForToken() {
 	}
 }
 
-
 // Get presence information
 void pollPresence() {
 	// See: https://github.com/microsoftgraph/microsoft-graph-docs/blob/ananya/api-reference/beta/resources/presence.md
@@ -301,7 +359,6 @@ void pollPresence() {
 		activity =  responseDoc["activity"].as<String>();
 	}
 }
-
 
 // Refresh the access token
 void refreshToken() {
@@ -330,12 +387,12 @@ void refreshToken() {
 	}
 }
 
-
 // Implementation of a statemachine to handle the different application states
 void statemachine() {
 	// Statemachine: After wifi is connected
 	if (state == SMODEWIFICONNECTED && laststate != SMODEWIFICONNECTED)
 	{
+		loadContext();
 		// WiFi client
 		Serial.println("Wifi connected, waiting for requests ...");
 	}
@@ -354,8 +411,9 @@ void statemachine() {
 		state = SMODEWIFICONNECTED;	// Return back to initial mode
 	}
 
-	// Statemachine: Auth is ready, start polling for presence immedately
+	// Statemachine: Auth is ready, start polling for presence immediately
 	if (state == SMODEAUTHREADY) {
+		saveContext();
 		state = SMODEPOLLPRESENCE;
 		tsPolling = millis();
 	}
@@ -379,6 +437,7 @@ void statemachine() {
 	if (state == SMODEREFRESHTOKEN) {
 		if (millis() >= tsPolling) {
 			refreshToken();
+			saveContext();
 		}
 	}
 
@@ -388,7 +447,6 @@ void statemachine() {
 		Serial.println("======================================================================");
 	}
 }
-
 
 
 /**
@@ -418,6 +476,12 @@ void setup()
 	server.onNotFound([]() { iotWebConf.handleNotFound(); });
 
 	Serial.println("setup() ready...");
+
+	// SPIFFS
+	bool initok = false;
+  	initok = SPIFFS.begin();
+	Serial.print("SPIFFS.begin() ");
+	Serial.println(initok);
 }
 
 void loop()
