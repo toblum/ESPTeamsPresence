@@ -104,14 +104,15 @@ int getTokenLifetime() {
 void saveContext() {
 	const size_t capacity = JSON_OBJECT_SIZE(3);
 	DynamicJsonDocument contextDoc(capacity);
-	contextDoc["access_token"] = access_token;
-	contextDoc["refresh_token"] = refresh_token;
-	contextDoc["id_token"] = id_token;
+	contextDoc["access_token"] = access_token.c_str();
+	contextDoc["refresh_token"] = refresh_token.c_str();
+	contextDoc["id_token"] = id_token.c_str();
 
 	File contextFile = SPIFFS.open(CONTEXT_FILE, "w");
 	serializeJsonPretty(contextDoc, contextFile);
 	contextFile.close();
 	Serial.printf("saveContext() - Success\n");
+	// Serial.println(contextDoc.as<String>());
 }
 
 boolean loadContext() {
@@ -150,7 +151,10 @@ boolean loadContext() {
 					state = SMODEREFRESHTOKEN;
 					success = true;
 					Serial.println("loadContext() - Success");
+				} else {
+					Serial.printf("loadContext() - ERROR Number of valid settings in file: %d, should be 3.\n", numSettings);
 				}
+				// Serial.println(contextDoc.as<String>());
 			}
 		}
 		file.close();
@@ -270,8 +274,8 @@ void handleStartDevicelogin() {
 			interval = doc["interval"].as<unsigned int>();
 
 			// Prepare response JSON
-			const int responseCapacity = JSON_OBJECT_SIZE(3);
-			StaticJsonDocument<responseCapacity> responseDoc;
+			const size_t responseCapacity = JSON_OBJECT_SIZE(3);
+			DynamicJsonDocument responseDoc(responseCapacity);
 			responseDoc["user_code"] = doc["user_code"].as<const char*>();
 			responseDoc["verification_uri"] = doc["verification_uri"].as<const char*>();
 			responseDoc["message"] = doc["message"].as<const char*>();
