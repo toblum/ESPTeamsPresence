@@ -35,6 +35,7 @@
 // #include <WiFiClientSecure.h>
 #include <WiFiClientSecureBearSSL.h>
 #include <ArduinoJson.h>
+#include <WS2812FX.h>
 
 #define STATUS_PIN LED_BUILTIN
 
@@ -56,6 +57,11 @@ IotWebConfSeparator separator1 = IotWebConfSeparator();
 
 // HTTP client
 BearSSL::WiFiClientSecure client;
+
+// WS2812FX
+#define NUMLEDS 7  // number of LEDs on the strip
+#define DATAPIN D1 // GPIO pin used to drive the LED strip
+WS2812FX ws2812fx = WS2812FX(NUMLEDS, DATAPIN, NEO_GRB + NEO_KHZ800);
 
 // Global variables
 String user_code = "";
@@ -164,6 +170,20 @@ boolean loadContext() {
 }
 
 
+// Neopixel control
+void setAnimation(uint8_t segment, uint8_t mode = FX_MODE_STATIC, uint32_t color = RED, uint16_t speed = 3000, bool reverse = false) {
+	uint16_t startLed, endLed = 0;
+
+	// Support only one segment for the moment
+	if (segment == 0) {
+		startLed = 0;
+		endLed = NUMLEDS - 1;
+	}
+	Serial.printf("setAnimation: %d, %d-%d, %d, %d, %d", segment, startLed, endLed, mode, color, speed);
+	ws2812fx.setSegment(segment, startLed, endLed, mode, color, speed, reverse);
+}
+
+
 /**
  * API request helper
  */
@@ -217,6 +237,7 @@ DynamicJsonDocument requestJsonApi(String url, String payload = "", size_t capac
 					Serial.println(https.getString());
 					return emptyDoc;
 				} else {
+					// Serial.println(https.getString());
 					return doc;
 				}
 			} else {
@@ -393,9 +414,15 @@ void refreshToken() {
 
 // Implementation of a statemachine to handle the different application states
 void statemachine() {
+	// Statemachine: Wifi connection start
+	if (state == SMODEWIFICONNECTING && laststate != SMODEWIFICONNECTING) {
+		// setAnimation(0, FX_MODE_SCAN, BLUE);
+	}
+
 	// Statemachine: After wifi is connected
 	if (state == SMODEWIFICONNECTED && laststate != SMODEWIFICONNECTED)
 	{
+		setAnimation(0, FX_MODE_SCAN, GREEN);
 		loadContext();
 		// WiFi client
 		Serial.println("Wifi connected, waiting for requests ...");
@@ -403,6 +430,9 @@ void statemachine() {
 
 	// Statemachine: Devicelogin started
 	if (state == SMODEDEVICELOGINSTARTED) {
+		if (laststate != SMODEDEVICELOGINSTARTED) {
+			setAnimation(0, FX_MODE_SCAN, PURPLE);
+		}
 		if (millis() >= tsPolling) {
 			pollForToken();
 			tsPolling = millis() + (interval * 1000);
@@ -439,6 +469,9 @@ void statemachine() {
 
 	// Statemachine: Refresh token
 	if (state == SMODEREFRESHTOKEN) {
+		if (laststate != SMODEREFRESHTOKEN) {
+			setAnimation(0, FX_MODE_CHASE_FLASH, RED);
+		}
 		if (millis() >= tsPolling) {
 			refreshToken();
 			saveContext();
@@ -462,6 +495,11 @@ void setup()
 	Serial.println();
 	Serial.println("setup() Starting up...");
 	// Serial.setDebugOutput(true);
+
+	// WS2812FX
+	ws2812fx.init();
+	ws2812fx.start();
+	setAnimation(0, FX_MODE_STATIC, WHITE);
 
 	// iotWebConf - Initializing the configuration.
 	iotWebConf.setStatusPin(STATUS_PIN);
@@ -492,6 +530,8 @@ void loop()
 {
 	// iotWebConf - doLoop should be called as frequently as possible.
 	iotWebConf.doLoop();
+
+	ws2812fx.service();
 
 	statemachine();
 }
