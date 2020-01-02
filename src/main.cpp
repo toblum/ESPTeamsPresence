@@ -179,7 +179,7 @@ void setAnimation(uint8_t segment, uint8_t mode = FX_MODE_STATIC, uint32_t color
 		startLed = 0;
 		endLed = NUMLEDS - 1;
 	}
-	Serial.printf("setAnimation: %d, %d-%d, %d, %d, %d", segment, startLed, endLed, mode, color, speed);
+	Serial.printf("setAnimation: %d, %d-%d, Mode: %d, Color: %d, Speed: %d\n", segment, startLed, endLed, mode, color, speed);
 	ws2812fx.setSegment(segment, startLed, endLed, mode, color, speed, reverse);
 }
 
@@ -187,7 +187,7 @@ void setAnimation(uint8_t segment, uint8_t mode = FX_MODE_STATIC, uint32_t color
 /**
  * API request helper
  */
-DynamicJsonDocument requestJsonApi(String url, String payload = "", size_t capacity = 0, String type = "POST", boolean sendAuth = false) {
+JsonDocument requestJsonApi(String url, String payload = "", size_t capacity = 0, String type = "POST", boolean sendAuth = false) {
 	// WiFiClient
 	std::unique_ptr<BearSSL::WiFiClientSecure>client(new BearSSL::WiFiClientSecure);
 	client->setInsecure();
@@ -223,10 +223,12 @@ DynamicJsonDocument requestJsonApi(String url, String payload = "", size_t capac
 
 			// File found at server (HTTP 200, 301), or HTTP 400 with response payload
 			if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY || httpCode == HTTP_CODE_BAD_REQUEST) {
+				// Serial.println(https.getString()); // Just for debug purposes
 				Stream& responseStream = https.getStream();
 
 				// Allocate the JSON document
 				// Use arduinojson.org/v6/assistant to compute the capacity.
+				// capacity = ESP.getFreeHeap() - 4096; // Use (almost) complete heap for testing purposes
 				DynamicJsonDocument doc(capacity);
 
 				// Parse JSON object
@@ -237,7 +239,6 @@ DynamicJsonDocument requestJsonApi(String url, String payload = "", size_t capac
 					Serial.println(https.getString());
 					return emptyDoc;
 				} else {
-					// Serial.println(https.getString());
 					return doc;
 				}
 			} else {
@@ -391,16 +392,24 @@ void refreshToken() {
 	String payload = "client_id=3837bbf0-30fb-47ad-bce8-f460ba9880c3&grant_type=refresh_token&refresh_token=" + refresh_token;
 	Serial.println("refreshToken()");
 
-	const size_t capacity = JSON_OBJECT_SIZE(7) + 4110;
-	DynamicJsonDocument responseDoc = requestJsonApi("https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/token", payload, capacity);
+	const size_t capacity = JSON_OBJECT_SIZE(7) + 4120;
+	JsonDocument responseDoc = requestJsonApi("https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/token", payload, capacity);
 
 	// Replace tokens and expiration
-	if (responseDoc.containsKey("access_token") && responseDoc.containsKey("refresh_token") && responseDoc.containsKey("id_token")) {
-		access_token = responseDoc["access_token"].as<String>();
-		refresh_token = responseDoc["refresh_token"].as<String>();
-		id_token = responseDoc["id_token"].as<String>();
-		int _expires_in = responseDoc["expires_in"].as<unsigned int>();
-		expires = millis() + (_expires_in * 1000); // Calculate timestamp when token expires
+	if (responseDoc.containsKey("access_token") && responseDoc.containsKey("refresh_token")) {
+		if (!responseDoc["access_token"].isNull()) {
+			access_token = responseDoc["access_token"].as<String>();
+		}
+		if (!responseDoc["refresh_token"].isNull()) {
+			refresh_token = responseDoc["refresh_token"].as<String>();
+		}
+		if (!responseDoc["id_token"].isNull()) {
+			id_token = responseDoc["id_token"].as<String>();
+		}
+		if (!responseDoc["expires_in"].isNull()) {
+			int _expires_in = responseDoc["expires_in"].as<unsigned int>();
+			expires = millis() + (_expires_in * 1000); // Calculate timestamp when token expires
+		}
 
 		Serial.println("refreshToken() - Success");
 		state = SMODEPOLLPRESENCE;
