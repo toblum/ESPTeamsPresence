@@ -32,7 +32,6 @@
 #include <Arduino.h>
 #include <IotWebConf.h>
 #include <ESP8266HTTPClient.h>
-// #include <WiFiClientSecure.h>
 #include <WiFiClientSecureBearSSL.h>
 #include <ArduinoJson.h>
 #include <WS2812FX.h>
@@ -42,7 +41,7 @@
 // -- Initial name of the Thing. Used e.g. as SSID of the own Access Point.
 const char thingName[] = "ESPTeamsPresence";
 // -- Initial password to connect to the Thing, when it creates an own Access Point.
-const char wifiInitialApPassword[] = "aqswdefr";
+const char wifiInitialApPassword[] = "presence";
 
 DNSServer dnsServer;
 WebServer server(80);
@@ -51,9 +50,11 @@ IotWebConf iotWebConf(thingName, &dnsServer, &server, wifiInitialApPassword);
 
 // Add parameter
 #define STRING_LEN 128
-char stringParamValue[STRING_LEN];
-IotWebConfParameter stringParam = IotWebConfParameter("String param", "stringParam", stringParamValue, STRING_LEN);
-IotWebConfSeparator separator1 = IotWebConfSeparator();
+char paramClientIdValue[STRING_LEN];
+char paramTenantValue[STRING_LEN];
+IotWebConfSeparator separator = IotWebConfSeparator();
+IotWebConfParameter paramClientId = IotWebConfParameter("Client id", "clientId", paramClientIdValue, STRING_LEN);
+IotWebConfParameter paramTenant = IotWebConfParameter("Tenant host / id", "tenantId", paramTenantValue, STRING_LEN);
 
 // HTTP client
 BearSSL::WiFiClientSecure client;
@@ -306,10 +307,34 @@ void handleRoot()
 	String s = "<!DOCTYPE html>\n<html lang=\"en\">\n<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/>";
 	s += "<title>IotWebConf 01 Minimal</title></head>\n<body><h2>Hello world!</h2>";
 	s += "Go to <a href=\"config\">configure page</a> to change settings.<br/>";
+	s += "Client id: " + String(paramClientIdValue) +  "<br/>";
+	s += "Tenant host / id: " + String(paramTenantValue) +  "<br/>";
 	s += "Start <a href=\"startDevicelogin\">device login</a> flow.";
 	s += "</body>\n</html>\n";
 
 	server.send(200, "text/html", s);
+}
+
+boolean formValidator()
+{
+	Serial.println("Validating form.");
+	boolean valid = true;
+
+	int l1 = server.arg(paramClientId.getId()).length();
+	if (l1 < 36)
+	{
+		paramClientId.errorMessage = "Please provide at least 36 characters for the client id!";
+		valid = false;
+	}
+
+	int l2 = server.arg(paramTenant.getId()).length();
+	if (l2 < 10)
+	{
+		paramTenant.errorMessage = "Please provide at least 10 characters for the tenant host / GUID!";
+		valid = false;
+	}
+
+	return valid;
 }
 
 // Requests to /startDevicelogin
@@ -321,7 +346,7 @@ void handleStartDevicelogin() {
 		// Request devicelogin context
 		const size_t capacity = JSON_OBJECT_SIZE(6) + 540;
 		DynamicJsonDocument doc(capacity);
-		boolean res = requestJsonApi(doc, "https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/devicecode", "client_id=3837bbf0-30fb-47ad-bce8-f460ba9880c3&scope=offline_access%20openid", capacity);
+		boolean res = requestJsonApi(doc, "https://login.microsoftonline.com/" + String(paramTenantValue) + "/oauth2/v2.0/devicecode", "client_id=" + String(paramClientIdValue) + "&scope=offline_access%20openid", capacity);
 
 		if (res && doc.containsKey("device_code") && doc.containsKey("user_code") && doc.containsKey("interval") && doc.containsKey("verification_uri") && doc.containsKey("message")) {
 			// Save device_code, user_code and interval
@@ -362,15 +387,15 @@ void onWifiConnected() {
 
 // Poll for access token
 void pollForToken() {
-	String payload = "client_id=3837bbf0-30fb-47ad-bce8-f460ba9880c3&grant_type=urn:ietf:params:oauth:grant-type:device_code&device_code=" + device_code;
+	String payload = "client_id=" + String(paramClientIdValue) + "&grant_type=urn:ietf:params:oauth:grant-type:device_code&device_code=" + device_code;
 	Serial.printf("pollForToken()\n");
 
 	// const size_t capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(7) + 530; // Case 1: HTTP 400 error (not yet ready)
 	const size_t capacity = JSON_OBJECT_SIZE(7) + 4090; // Case 2: Successful (bigger size of both variants, so take that one as capacity)
 	DynamicJsonDocument responseDoc(capacity);
-	boolean res = requestJsonApi(responseDoc, "https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/token", payload, capacity);
+	boolean res = requestJsonApi(responseDoc, "https://login.microsoftonline.com/" + String(paramTenantValue) + "/oauth2/v2.0/token", payload, capacity);
 	// Serial.println(responseDoc.as<String>());
-	
+
 	if (!res) {
 		state = SMODEDEVICELOGINFAILED;
 	} else if (responseDoc.containsKey("error")) {
@@ -431,12 +456,12 @@ void pollPresence() {
 // Refresh the access token
 void refreshToken() {
 	// See: https://docs.microsoft.com/de-de/azure/active-directory/develop/v1-protocols-oauth-code#refreshing-the-access-tokens
-	String payload = "client_id=3837bbf0-30fb-47ad-bce8-f460ba9880c3&grant_type=refresh_token&refresh_token=" + refresh_token;
+	String payload = "client_id=" + String(paramClientIdValue) + "&grant_type=refresh_token&refresh_token=" + refresh_token;
 	Serial.println("refreshToken()");
 
 	const size_t capacity = JSON_OBJECT_SIZE(7) + 4120;
 	DynamicJsonDocument responseDoc(capacity);
-	boolean res = requestJsonApi(responseDoc, "https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/token", payload, capacity);
+	boolean res = requestJsonApi(responseDoc, "https://login.microsoftonline.com/" + String(paramTenantValue) + "/oauth2/v2.0/token", payload, capacity);
 
 	// Replace tokens and expiration
 	if (res && responseDoc.containsKey("access_token") && responseDoc.containsKey("refresh_token")) {
@@ -521,7 +546,7 @@ void statemachine() {
 	// Statemachine: Refresh token
 	if (state == SMODEREFRESHTOKEN) {
 		if (laststate != SMODEREFRESHTOKEN) {
-			setAnimation(0, FX_MODE_CHASE_FLASH, RED);
+			setAnimation(0, FX_MODE_THEATER_CHASE, RED);
 		}
 		if (millis() >= tsPolling) {
 			refreshToken();
@@ -555,8 +580,10 @@ void setup()
 	// iotWebConf - Initializing the configuration.
 	iotWebConf.setStatusPin(STATUS_PIN);
 	iotWebConf.setWifiConnectionTimeoutMs(5000);
-	iotWebConf.addParameter(&stringParam);
-	iotWebConf.addParameter(&separator1);
+	iotWebConf.addParameter(&separator);
+	iotWebConf.addParameter(&paramClientId);
+	iotWebConf.addParameter(&paramTenant);
+	iotWebConf.setFormValidator(&formValidator);
 	iotWebConf.getApTimeoutParameter()->visible = true;
 	iotWebConf.setWifiConnectionCallback(&onWifiConnected);
 	state = SMODEWIFICONNECTING;
