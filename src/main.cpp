@@ -183,6 +183,45 @@ void setAnimation(uint8_t segment, uint8_t mode = FX_MODE_STATIC, uint32_t color
 	ws2812fx.setSegment(segment, startLed, endLed, mode, color, speed, reverse);
 }
 
+void setPresenceAnimation() {
+
+	// Activity: Available, Away, BeRightBack, Busy, DoNotDisturb, InACall, InAConferenceCall, Inactive, InAMeeting, Offline, OffWork, OutOfOffice, PresenceUnknown, Presenting, UrgentInterruptionsOnly
+
+	if (activity.equals("Available")) {
+		setAnimation(0, FX_MODE_STATIC, GREEN);
+	}
+	if (activity.equals("Away")) {
+		setAnimation(0, FX_MODE_STATIC, YELLOW);
+	}
+	if (activity.equals("BeRightBack")) {
+		setAnimation(0, FX_MODE_STATIC, ORANGE);
+	}
+	if (activity.equals("Busy")) {
+		setAnimation(0, FX_MODE_STATIC, PURPLE);
+	}
+	if (activity.equals("DoNotDisturb") || activity.equals("UrgentInterruptionsOnly")) {
+		setAnimation(0, FX_MODE_STATIC, PINK);
+	}
+	if (activity.equals("InACall")) {
+		setAnimation(0, FX_MODE_BREATH, RED);
+	}
+	if (activity.equals("InAConferenceCall")) {
+		setAnimation(0, FX_MODE_BREATH, RED, 9000);
+	}
+	if (activity.equals("Inactive")) {
+		setAnimation(0, FX_MODE_BREATH, WHITE);
+	}
+	if (activity.equals("InAMeeting")) {
+		setAnimation(0, FX_MODE_SCAN, RED);
+	}	
+	if (activity.equals("Offline") || activity.equals("OffWork") || activity.equals("OutOfOffice") || activity.equals("PresenceUnknown")) {
+		setAnimation(0, FX_MODE_STATIC, BLACK);
+	}
+	if (activity.equals("Presenting")) {
+		setAnimation(0, FX_MODE_COLOR_WIPE, RED);
+	}
+}
+
 
 /**
  * API request helper
@@ -287,7 +326,7 @@ void handleStartDevicelogin() {
 
 		// Request devicelogin context
 		const size_t capacity = JSON_OBJECT_SIZE(6) + 540;
-		DynamicJsonDocument doc = requestJsonApi("https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/devicecode", "client_id=3837bbf0-30fb-47ad-bce8-f460ba9880c3&scope=offline_access%20openid", capacity);
+		JsonDocument doc = requestJsonApi("https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/devicecode", "client_id=3837bbf0-30fb-47ad-bce8-f460ba9880c3&scope=offline_access%20openid", capacity);
 
 		if (doc.containsKey("device_code") && doc.containsKey("user_code") && doc.containsKey("interval") && doc.containsKey("verification_uri") && doc.containsKey("message")) {
 			// Save device_code, user_code and interval
@@ -380,9 +419,11 @@ void pollPresence() {
 			state = SMODEPRESENCEREQUESTERROR;
 		}
 	} else {
-		// Save presence info
+		// Store presence info
 		availability =  responseDoc["availability"].as<String>();
 		activity =  responseDoc["activity"].as<String>();
+
+		setPresenceAnimation();
 	}
 }
 
@@ -425,13 +466,13 @@ void refreshToken() {
 void statemachine() {
 	// Statemachine: Wifi connection start
 	if (state == SMODEWIFICONNECTING && laststate != SMODEWIFICONNECTING) {
-		// setAnimation(0, FX_MODE_SCAN, BLUE);
+		setAnimation(0, FX_MODE_THEATER_CHASE, BLUE);
 	}
 
 	// Statemachine: After wifi is connected
 	if (state == SMODEWIFICONNECTED && laststate != SMODEWIFICONNECTED)
 	{
-		setAnimation(0, FX_MODE_SCAN, GREEN);
+		setAnimation(0, FX_MODE_THEATER_CHASE, GREEN);
 		loadContext();
 		// WiFi client
 		Serial.println("Wifi connected, waiting for requests ...");
@@ -440,7 +481,7 @@ void statemachine() {
 	// Statemachine: Devicelogin started
 	if (state == SMODEDEVICELOGINSTARTED) {
 		if (laststate != SMODEDEVICELOGINSTARTED) {
-			setAnimation(0, FX_MODE_SCAN, PURPLE);
+			setAnimation(0, FX_MODE_THEATER_CHASE, PURPLE);
 		}
 		if (millis() >= tsPolling) {
 			pollForToken();
