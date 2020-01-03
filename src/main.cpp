@@ -226,7 +226,7 @@ void setPresenceAnimation() {
 /**
  * API request helper
  */
-JsonDocument requestJsonApi(String url, String payload = "", size_t capacity = 0, String type = "POST", boolean sendAuth = false) {
+boolean requestJsonApi(JsonDocument& doc, String url, String payload = "", size_t capacity = 0, String type = "POST", boolean sendAuth = false) {
 	// WiFiClient
 	std::unique_ptr<BearSSL::WiFiClientSecure>client(new BearSSL::WiFiClientSecure);
 	client->setInsecure();
@@ -262,40 +262,34 @@ JsonDocument requestJsonApi(String url, String payload = "", size_t capacity = 0
 
 			// File found at server (HTTP 200, 301), or HTTP 400 with response payload
 			if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY || httpCode == HTTP_CODE_BAD_REQUEST) {
-				// Serial.println(https.getString()); // Just for debug purposes
+				// Serial.println(https.getString()); // Just for debug purposes, breaks further execution
 				Stream& responseStream = https.getStream();
 
-				// Allocate the JSON document
-				// Use arduinojson.org/v6/assistant to compute the capacity.
-				// capacity = ESP.getFreeHeap() - 4096; // Use (almost) complete heap for testing purposes
-				DynamicJsonDocument doc(capacity);
-
-				// Parse JSON object
+				// Parse JSON data
 				DeserializationError error = deserializeJson(doc, responseStream);
 				if (error) {
 					Serial.print(F("deserializeJson() failed: "));
 					Serial.println(error.c_str());
-					Serial.println(https.getString());
-					return emptyDoc;
+					return false;
 				} else {
-					return doc;
+					return true;
 				}
 			} else {
 				Serial.printf("[HTTPS] Other HTTP code: %d\nResponse: ", httpCode);
 				Serial.println(https.getString());
+				return false;
 			}
 		} else {
 			Serial.printf("[HTTPS] Request failed: %s\n", https.errorToString(httpCode).c_str());
-			return emptyDoc;
+			return false;
 		}
 
 		https.end();
     } else {
     	Serial.printf("[HTTPS] Unable to connect\n");
     }
-	return emptyDoc;
+	return false;
 }
-
 
 
 /**
@@ -326,9 +320,10 @@ void handleStartDevicelogin() {
 
 		// Request devicelogin context
 		const size_t capacity = JSON_OBJECT_SIZE(6) + 540;
-		JsonDocument doc = requestJsonApi("https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/devicecode", "client_id=3837bbf0-30fb-47ad-bce8-f460ba9880c3&scope=offline_access%20openid", capacity);
+		DynamicJsonDocument doc(capacity);
+		boolean res = requestJsonApi(doc, "https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/devicecode", "client_id=3837bbf0-30fb-47ad-bce8-f460ba9880c3&scope=offline_access%20openid", capacity);
 
-		if (doc.containsKey("device_code") && doc.containsKey("user_code") && doc.containsKey("interval") && doc.containsKey("verification_uri") && doc.containsKey("message")) {
+		if (res && doc.containsKey("device_code") && doc.containsKey("user_code") && doc.containsKey("interval") && doc.containsKey("verification_uri") && doc.containsKey("message")) {
 			// Save device_code, user_code and interval
 			device_code = doc["device_code"].as<String>();
 			user_code = doc["user_code"].as<String>();
@@ -372,10 +367,13 @@ void pollForToken() {
 
 	// const size_t capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(7) + 530; // Case 1: HTTP 400 error (not yet ready)
 	const size_t capacity = JSON_OBJECT_SIZE(7) + 4090; // Case 2: Successful (bigger size of both variants, so take that one as capacity)
-	DynamicJsonDocument responseDoc = requestJsonApi("https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/token", payload, capacity);
+	DynamicJsonDocument responseDoc(capacity);
+	boolean res = requestJsonApi(responseDoc, "https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/token", payload, capacity);
 	// Serial.println(responseDoc.as<String>());
-
-	if (responseDoc.containsKey("error")) {
+	
+	if (!res) {
+		state = SMODEDEVICELOGINFAILED;
+	} else if (responseDoc.containsKey("error")) {
 		const char* _error = responseDoc["error"];
 		const char* _error_description = responseDoc["error_description"];
 
@@ -406,9 +404,12 @@ void pollForToken() {
 void pollPresence() {
 	// See: https://github.com/microsoftgraph/microsoft-graph-docs/blob/ananya/api-reference/beta/resources/presence.md
 	const size_t capacity = JSON_OBJECT_SIZE(4) + 220;
-	DynamicJsonDocument responseDoc = requestJsonApi("https://graph.microsoft.com/beta/me/presence", "", capacity, "GET", true);
+	DynamicJsonDocument responseDoc(capacity);
+	boolean res = requestJsonApi(responseDoc, "https://graph.microsoft.com/beta/me/presence", "", capacity, "GET", true);
 
-	if (responseDoc.containsKey("error")) {
+	if (!res) {
+		state = SMODEPRESENCEREQUESTERROR;
+	} else if (responseDoc.containsKey("error")) {
 		const char* _error_code = responseDoc["error"]["code"];
 		if (strcmp(_error_code, "InvalidAuthenticationToken")) {
 			Serial.println("pollPresence() - Refresh needed");
@@ -420,8 +421,8 @@ void pollPresence() {
 		}
 	} else {
 		// Store presence info
-		availability =  responseDoc["availability"].as<String>();
-		activity =  responseDoc["activity"].as<String>();
+		availability = responseDoc["availability"].as<String>();
+		activity = responseDoc["activity"].as<String>();
 
 		setPresenceAnimation();
 	}
@@ -434,10 +435,11 @@ void refreshToken() {
 	Serial.println("refreshToken()");
 
 	const size_t capacity = JSON_OBJECT_SIZE(7) + 4120;
-	JsonDocument responseDoc = requestJsonApi("https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/token", payload, capacity);
+	DynamicJsonDocument responseDoc(capacity);
+	boolean res = requestJsonApi(responseDoc, "https://login.microsoftonline.com/***REMOVED***/oauth2/v2.0/token", payload, capacity);
 
 	// Replace tokens and expiration
-	if (responseDoc.containsKey("access_token") && responseDoc.containsKey("refresh_token")) {
+	if (res && responseDoc.containsKey("access_token") && responseDoc.containsKey("refresh_token")) {
 		if (!responseDoc["access_token"].isNull()) {
 			access_token = responseDoc["access_token"].as<String>();
 		}
@@ -456,7 +458,6 @@ void refreshToken() {
 		state = SMODEPOLLPRESENCE;
 	} else {
 		Serial.println("refreshToken() - Error:");
-		Serial.println(responseDoc.as<String>());
 		// Set retry after timeout
 		tsPolling = millis() + (DEFAULT_ERROR_RETRY_INTERVAL * 1000);
 	}
