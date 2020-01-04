@@ -99,6 +99,7 @@ String activity = "";
 int state = SMODEINITIAL;
 int laststate = SMODEINITIAL;
 static unsigned long tsPolling = 0;
+unsigned int retries = 0;
 
 
 
@@ -562,6 +563,19 @@ void statemachine() {
 		if (millis() >= tsPolling) {
 			refreshToken();
 			saveContext();
+		}
+	}
+
+	// Statemachine: Polling presence failed
+	if (state == SMODEPRESENCEREQUESTERROR) {
+		if (laststate != SMODEPRESENCEREQUESTERROR) {
+			retries = 0;
+		}
+		retries++;
+		Serial.printf("Polling presence failed, retry %d.", retries);
+		if (retries >= 5) {
+			// Try token refresh
+			state = SMODEREFRESHTOKEN;
 		}
 	}
 
