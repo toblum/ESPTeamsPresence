@@ -37,6 +37,8 @@
 #include <WS2812FX.h>
 
 // Global settings
+#define NUMLEDS 7  // number of LEDs on the strip
+#define DATAPIN D1 // GPIO pin used to drive the LED strip
 #define STATUS_PIN LED_BUILTIN					// User builtin LED for status
 #define DEFAULT_POLLING_PRESENCE_INTERVAL 15	// Default interval to poll for presence info (seconds)
 #define DEFAULT_ERROR_RETRY_INTERVAL 30			// Default interval to try again after errors
@@ -60,17 +62,18 @@ IotWebConf iotWebConf(thingName, &dnsServer, &server, wifiInitialApPassword);
 char paramClientIdValue[STRING_LEN];
 char paramTenantValue[STRING_LEN];
 char paramPollIntervalValue[INTEGER_LEN];
+char paramNumLedsValue[INTEGER_LEN];
 IotWebConfSeparator separator = IotWebConfSeparator();
 IotWebConfParameter paramClientId = IotWebConfParameter("Client id", "clientId", paramClientIdValue, STRING_LEN, "text", "e.g. 12345678-1234-1234-1234-1234567890ab");
 IotWebConfParameter paramTenant = IotWebConfParameter("Tenant host / id", "tenantId", paramTenantValue, STRING_LEN, "text", "e.g. contoso.onmicrosoft.com");
 IotWebConfParameter paramPollInterval = IotWebConfParameter("Presence polling interval (sec)", "pollInterval", paramPollIntervalValue, INTEGER_LEN, "number", "10..300", (const char*)(DEFAULT_POLLING_PRESENCE_INTERVAL), "min='10' max='300' step='5'");
+IotWebConfParameter paramNumLeds = IotWebConfParameter("Number of LEDs", "numLeds", paramNumLedsValue, INTEGER_LEN, "number", "1..500", (const char*)(NUMLEDS), "min='1' max='500' step='1'");
 
 // HTTP client
 BearSSL::WiFiClientSecure client;
 
 // WS2812FX
-#define NUMLEDS 7  // number of LEDs on the strip
-#define DATAPIN D1 // GPIO pin used to drive the LED strip
+
 WS2812FX ws2812fx = WS2812FX(NUMLEDS, DATAPIN, NEO_GRB + NEO_KHZ800);
 
 // Global variables
@@ -100,7 +103,6 @@ int state = SMODEINITIAL;
 int laststate = SMODEINITIAL;
 static unsigned long tsPolling = 0;
 unsigned int retries = 0;
-
 
 
 /**
@@ -313,7 +315,8 @@ void handleRoot()
 	s += "Go to <a href=\"config\">configure page</a> to change settings.<br/><br/>";
 	s += "Client id: " + String(paramClientIdValue) +  "<br/>";
 	s += "Tenant host / id: " + String(paramTenantValue) +  "<br/>";
-	s += "Polling interval (sec): " + String(paramPollIntervalValue) +  "<br/><br/>";
+	s += "Polling interval (sec): " + String(paramPollIntervalValue) +  "<br/>";
+	s += "Number of LEDs: " + String(paramNumLedsValue) +  "<br/><br/>";
 	s += "Start <a href=\"startDevicelogin\">device login</a> flow.";
 	s += "</body>\n</html>\n";
 
@@ -346,7 +349,20 @@ boolean formValidator()
 		valid = false;
 	}
 
+	int l4 = server.arg(paramNumLeds.getId()).length();
+	if (l4 < 1)
+	{
+		paramNumLeds.errorMessage = "Please provide a value for the number of LEDs!";
+		valid = false;
+	}
+
 	return valid;
+}
+
+// Config was saved
+void onConfigSaved() {
+	Serial.println("Configuration was updated.");
+	ws2812fx.setLength(atoi(paramNumLedsValue));
 }
 
 // Requests to /startDevicelogin
@@ -540,8 +556,8 @@ void statemachine() {
 		tsPolling = millis();
 	}
 
-	// Statemachine: Poll for presence information
-	if (state == SMODEPOLLPRESENCE) {
+	// Statemachine: Poll for presence information, even if there was a error before (handled below)
+	if (state == SMODEPOLLPRESENCE || state == SMODEPRESENCEREQUESTERROR) {
 		if (millis() >= tsPolling) {
 			Serial.println("Polling presence info ...");
 			pollPresence();
@@ -609,11 +625,16 @@ void setup()
 	iotWebConf.addParameter(&paramClientId);
 	iotWebConf.addParameter(&paramTenant);
 	iotWebConf.addParameter(&paramPollInterval);
+	iotWebConf.addParameter(&paramNumLeds);
 	iotWebConf.setFormValidator(&formValidator);
 	iotWebConf.getApTimeoutParameter()->visible = true;
 	iotWebConf.setWifiConnectionCallback(&onWifiConnected);
+	iotWebConf.setConfigSavedCallback(&onConfigSaved);
 	state = SMODEWIFICONNECTING;
 	iotWebConf.init();
+
+	// WS2812FX
+	ws2812fx.setLength(atoi(paramNumLedsValue));
 
 	// HTTP server - Set up required URL handlers on the web server.
 	server.on("/", handleRoot);
