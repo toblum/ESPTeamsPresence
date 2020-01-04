@@ -36,8 +36,14 @@
 #include <ArduinoJson.h>
 #include <WS2812FX.h>
 
-#define STATUS_PIN LED_BUILTIN
+// Global settings
+#define STATUS_PIN LED_BUILTIN					// User builtin LED for status
+#define DEFAULT_POLLING_PRESENCE_INTERVAL 15	// Default interval to poll for presence info (seconds)
+#define DEFAULT_ERROR_RETRY_INTERVAL 30			// Default interval to try again after errors
+#define TOKEN_REFRESH_TIMEOUT 60	 			// Number of seconds until expiration before token gets refreshed
+#define CONTEXT_FILE "context.json"				// Filename of the context file
 
+// IotWebConf
 // -- Initial name of the Thing. Used e.g. as SSID of the own Access Point.
 const char thingName[] = "ESPTeamsPresence";
 // -- Initial password to connect to the Thing, when it creates an own Access Point.
@@ -50,11 +56,14 @@ IotWebConf iotWebConf(thingName, &dnsServer, &server, wifiInitialApPassword);
 
 // Add parameter
 #define STRING_LEN 128
+#define INTEGER_LEN 128
 char paramClientIdValue[STRING_LEN];
 char paramTenantValue[STRING_LEN];
+char paramPollIntervalValue[INTEGER_LEN];
 IotWebConfSeparator separator = IotWebConfSeparator();
-IotWebConfParameter paramClientId = IotWebConfParameter("Client id", "clientId", paramClientIdValue, STRING_LEN);
-IotWebConfParameter paramTenant = IotWebConfParameter("Tenant host / id", "tenantId", paramTenantValue, STRING_LEN);
+IotWebConfParameter paramClientId = IotWebConfParameter("Client id", "clientId", paramClientIdValue, STRING_LEN, "text", "e.g. 12345678-1234-1234-1234-1234567890ab");
+IotWebConfParameter paramTenant = IotWebConfParameter("Tenant host / id", "tenantId", paramTenantValue, STRING_LEN, "text", "e.g. contoso.onmicrosoft.com");
+IotWebConfParameter paramPollInterval = IotWebConfParameter("Presence polling interval (sec)", "pollInterval", paramPollIntervalValue, INTEGER_LEN, "number", "10..300", (const char*)(DEFAULT_POLLING_PRESENCE_INTERVAL), "min='10' max='300' step='5'");
 
 // HTTP client
 BearSSL::WiFiClientSecure client;
@@ -76,12 +85,6 @@ unsigned int expires = 0;
 
 String availability = "";
 String activity = "";
-
-// Global settings
-#define DEFAULT_POLLING_PRESENCE_INTERVAL 15	// Default interval to poll for presence info (seconds)
-#define DEFAULT_ERROR_RETRY_INTERVAL 30			// Default interval to try again after errors
-#define TOKEN_REFRESH_TIMEOUT 60	 			// Number of seconds until expiration before token gets refreshed
-#define CONTEXT_FILE "context.json"				// Filename of the context file
 
 // Statemachine
 #define SMODEINITIAL 0               // Initial
@@ -306,9 +309,10 @@ void handleRoot()
 
 	String s = "<!DOCTYPE html>\n<html lang=\"en\">\n<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/>";
 	s += "<title>IotWebConf 01 Minimal</title></head>\n<body><h2>Hello world!</h2>";
-	s += "Go to <a href=\"config\">configure page</a> to change settings.<br/>";
+	s += "Go to <a href=\"config\">configure page</a> to change settings.<br/><br/>";
 	s += "Client id: " + String(paramClientIdValue) +  "<br/>";
 	s += "Tenant host / id: " + String(paramTenantValue) +  "<br/>";
+	s += "Polling interval (sec): " + String(paramPollIntervalValue) +  "<br/><br/>";
 	s += "Start <a href=\"startDevicelogin\">device login</a> flow.";
 	s += "</body>\n</html>\n";
 
@@ -331,6 +335,13 @@ boolean formValidator()
 	if (l2 < 10)
 	{
 		paramTenant.errorMessage = "Please provide at least 10 characters for the tenant host / GUID!";
+		valid = false;
+	}
+
+	int l3 = server.arg(paramPollInterval.getId()).length();
+	if (l3 < 1)
+	{
+		paramPollInterval.errorMessage = "Please provide a value for the presence poll interval!";
 		valid = false;
 	}
 
@@ -533,7 +544,7 @@ void statemachine() {
 		if (millis() >= tsPolling) {
 			Serial.println("Polling presence info ...");
 			pollPresence();
-			tsPolling = millis() + (DEFAULT_POLLING_PRESENCE_INTERVAL * 1000);
+			tsPolling = millis() + (atoi(paramPollIntervalValue) * 1000);
 			Serial.printf("--> Availability: %s, Activity: %s\n\n", availability.c_str(), activity.c_str());
 		}
 
@@ -583,6 +594,7 @@ void setup()
 	iotWebConf.addParameter(&separator);
 	iotWebConf.addParameter(&paramClientId);
 	iotWebConf.addParameter(&paramTenant);
+	iotWebConf.addParameter(&paramPollInterval);
 	iotWebConf.setFormValidator(&formValidator);
 	iotWebConf.getApTimeoutParameter()->visible = true;
 	iotWebConf.setWifiConnectionCallback(&onWifiConnected);
