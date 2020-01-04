@@ -191,7 +191,6 @@ void setAnimation(uint8_t segment, uint8_t mode = FX_MODE_STATIC, uint32_t color
 }
 
 void setPresenceAnimation() {
-
 	// Activity: Available, Away, BeRightBack, Busy, DoNotDisturb, InACall, InAConferenceCall, Inactive, InAMeeting, Offline, OffWork, OutOfOffice, PresenceUnknown, Presenting, UrgentInterruptionsOnly
 
 	if (activity.equals("Available")) {
@@ -482,7 +481,8 @@ void pollPresence() {
 }
 
 // Refresh the access token
-void refreshToken() {
+boolean refreshToken() {
+	boolean success = false;
 	// See: https://docs.microsoft.com/de-de/azure/active-directory/develop/v1-protocols-oauth-code#refreshing-the-access-tokens
 	String payload = "client_id=" + String(paramClientIdValue) + "&grant_type=refresh_token&refresh_token=" + refresh_token;
 	Serial.println("refreshToken()");
@@ -495,9 +495,11 @@ void refreshToken() {
 	if (res && responseDoc.containsKey("access_token") && responseDoc.containsKey("refresh_token")) {
 		if (!responseDoc["access_token"].isNull()) {
 			access_token = responseDoc["access_token"].as<String>();
+			success = true;
 		}
 		if (!responseDoc["refresh_token"].isNull()) {
 			refresh_token = responseDoc["refresh_token"].as<String>();
+			success = true;
 		}
 		if (!responseDoc["id_token"].isNull()) {
 			id_token = responseDoc["id_token"].as<String>();
@@ -514,6 +516,7 @@ void refreshToken() {
 		// Set retry after timeout
 		tsPolling = millis() + (DEFAULT_ERROR_RETRY_INTERVAL * 1000);
 	}
+	return success;
 }
 
 // Implementation of a statemachine to handle the different application states
@@ -577,8 +580,10 @@ void statemachine() {
 			setAnimation(0, FX_MODE_THEATER_CHASE, RED);
 		}
 		if (millis() >= tsPolling) {
-			refreshToken();
-			saveContext();
+			boolean success = refreshToken();
+			if (success) {
+				saveContext();
+			}
 		}
 	}
 
@@ -588,7 +593,7 @@ void statemachine() {
 			retries = 0;
 		}
 		retries++;
-		Serial.printf("Polling presence failed, retry %d.", retries);
+		Serial.printf("Polling presence failed, retry #%d.\n", retries);
 		if (retries >= 5) {
 			// Try token refresh
 			state = SMODEREFRESHTOKEN;
