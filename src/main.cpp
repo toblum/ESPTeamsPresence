@@ -461,6 +461,7 @@ void pollPresence() {
 
 	if (!res) {
 		state = SMODEPRESENCEREQUESTERROR;
+		retries++;
 	} else if (responseDoc.containsKey("error")) {
 		const char* _error_code = responseDoc["error"]["code"];
 		if (strcmp(_error_code, "InvalidAuthenticationToken")) {
@@ -470,11 +471,13 @@ void pollPresence() {
 		} else {
 			Serial.printf("pollPresence() - Error: %s\n", _error_code);
 			state = SMODEPRESENCEREQUESTERROR;
+			retries++;
 		}
 	} else {
 		// Store presence info
 		availability = responseDoc["availability"].as<String>();
 		activity = responseDoc["activity"].as<String>();
+		retries = 0;
 
 		setPresenceAnimation();
 	}
@@ -560,7 +563,7 @@ void statemachine() {
 	}
 
 	// Statemachine: Poll for presence information, even if there was a error before (handled below)
-	if (state == SMODEPOLLPRESENCE || state == SMODEPRESENCEREQUESTERROR) {
+	if (state == SMODEPOLLPRESENCE) {
 		if (millis() >= tsPolling) {
 			Serial.println("Polling presence info ...");
 			pollPresence();
@@ -592,12 +595,13 @@ void statemachine() {
 		if (laststate != SMODEPRESENCEREQUESTERROR) {
 			retries = 0;
 		}
-		retries++;
+		
 		Serial.printf("Polling presence failed, retry #%d.\n", retries);
 		if (retries >= 5) {
 			// Try token refresh
 			state = SMODEREFRESHTOKEN;
 		}
+		state = SMODEPOLLPRESENCE;
 	}
 
 	// Update laststate
