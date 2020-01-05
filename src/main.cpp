@@ -45,6 +45,9 @@
 #define TOKEN_REFRESH_TIMEOUT 60	 			// Number of seconds until expiration before token gets refreshed
 #define CONTEXT_FILE "context.json"				// Filename of the context file
 
+#define DBG_PRINT(x) Serial.print(x)
+#define DBG_PRINTLN(x) Serial.println(x)
+
 // IotWebConf
 // -- Initial name of the Thing. Used e.g. as SSID of the own Access Point.
 const char thingName[] = "ESPTeamsPresence";
@@ -57,8 +60,8 @@ WebServer server(80);
 IotWebConf iotWebConf(thingName, &dnsServer, &server, wifiInitialApPassword);
 
 // Add parameter
-#define STRING_LEN 128
-#define INTEGER_LEN 128
+#define STRING_LEN 64
+#define INTEGER_LEN 16
 char paramClientIdValue[STRING_LEN];
 char paramTenantValue[STRING_LEN];
 char paramPollIntervalValue[INTEGER_LEN];
@@ -79,12 +82,12 @@ WS2812FX ws2812fx = WS2812FX(NUMLEDS, DATAPIN, NEO_GRB + NEO_KHZ800);
 // Global variables
 String user_code = "";
 String device_code = "";
-unsigned int interval = 5;
+uint8_t interval = 5;
 
 String access_token = "";
 String refresh_token = "";
 String id_token = "";
-unsigned int expires = 0;
+uint8_t expires = 0;
 
 String availability = "";
 String activity = "";
@@ -124,8 +127,8 @@ void saveContext() {
 	File contextFile = SPIFFS.open(CONTEXT_FILE, "w");
 	serializeJsonPretty(contextDoc, contextFile);
 	contextFile.close();
-	Serial.printf("saveContext() - Success\n");
-	// Serial.println(contextDoc.as<String>());
+	DBG_PRINTLN(F("saveContext() - Success"));
+	// DBG_PRINTLN(contextDoc.as<String>());
 }
 
 boolean loadContext() {
@@ -133,19 +136,19 @@ boolean loadContext() {
 	boolean success = false;
 
 	if (!file) {
-		Serial.println("loadContext() - No file found");
+		DBG_PRINTLN(F("loadContext() - No file found"));
 	} else {
 		size_t size = file.size();
 		if (size == 0) {
-			Serial.println("loadContext() - File empty");
+			DBG_PRINTLN(F("loadContext() - File empty"));
 		} else {
 			const int capacity = JSON_OBJECT_SIZE(3) + 4000;
 			DynamicJsonDocument contextDoc(capacity);
 			DeserializationError err = deserializeJson(contextDoc, file);
 
 			if (err) {
-				Serial.print(F("loadContext() - deserializeJson() failed with code: "));
-				Serial.println(err.c_str());
+				DBG_PRINT(F("loadContext() - deserializeJson() failed with code: "));
+				DBG_PRINTLN(err.c_str());
 			} else {
 				int numSettings = 0;
 				if (!contextDoc["access_token"].isNull()) {
@@ -163,11 +166,11 @@ boolean loadContext() {
 				if (numSettings == 3) {
 					state = SMODEREFRESHTOKEN;
 					success = true;
-					Serial.println("loadContext() - Success");
+					DBG_PRINTLN(F("loadContext() - Success"));
 				} else {
 					Serial.printf("loadContext() - ERROR Number of valid settings in file: %d, should be 3.\n", numSettings);
 				}
-				// Serial.println(contextDoc.as<String>());
+				// DBG_PRINTLN(contextDoc.as<String>());
 			}
 		}
 		file.close();
@@ -244,13 +247,14 @@ boolean requestJsonApi(JsonDocument& doc, String url, String payload = "", size_
 	const int emptyCapacity = JSON_OBJECT_SIZE(1);
 	DynamicJsonDocument emptyDoc(emptyCapacity);
 
-	// Serial.print("[HTTPS] begin...\n");
+	// DBG_PRINT("[HTTPS] begin...\n");
     if (https.begin(*client, url)) {  // HTTPS
 
 		// Send auth header?
 		if (sendAuth) {
 			https.addHeader("Authorization", "Bearer " + access_token);
-			Serial.printf("[HTTPS] Auth token valid for %d s.\n", getTokenLifetime());
+			DBG_PRINT(F("[HTTPS] Auth token valid for %d s."));
+			DBG_PRINTLN(getTokenLifetime());
 		}
 
 		// Start connection and send HTTP header
@@ -268,31 +272,33 @@ boolean requestJsonApi(JsonDocument& doc, String url, String payload = "", size_
 
 			// File found at server (HTTP 200, 301), or HTTP 400 with response payload
 			if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY || httpCode == HTTP_CODE_BAD_REQUEST) {
-				// Serial.println(https.getString()); // Just for debug purposes, breaks further execution
+				// DBG_PRINTLN(https.getString()); // Just for debug purposes, breaks further execution
 				Stream& responseStream = https.getStream();
 
 				// Parse JSON data
 				DeserializationError error = deserializeJson(doc, responseStream);
 				if (error) {
-					Serial.print(F("deserializeJson() failed: "));
-					Serial.println(error.c_str());
+					DBG_PRINT(F("deserializeJson() failed: "));
+					DBG_PRINTLN(error.c_str());
+					https.end();
 					return false;
 				} else {
+					https.end();
 					return true;
 				}
 			} else {
 				Serial.printf("[HTTPS] Other HTTP code: %d\nResponse: ", httpCode);
-				Serial.println(https.getString());
+				DBG_PRINTLN(https.getString());
+				https.end();
 				return false;
 			}
 		} else {
 			Serial.printf("[HTTPS] Request failed: %s\n", https.errorToString(httpCode).c_str());
+			https.end();
 			return false;
 		}
-
-		https.end();
     } else {
-    	Serial.printf("[HTTPS] Unable to connect\n");
+    	DBG_PRINTLN(F("[HTTPS] Unable to connect"));
     }
 	return false;
 }
@@ -305,7 +311,7 @@ boolean requestJsonApi(JsonDocument& doc, String url, String payload = "", size_
 // Requests to /
 void handleRoot()
 {
-	Serial.println("handleRoot()");
+	DBG_PRINTLN("handleRoot()");
 	// -- Let IotWebConf test and handle captive portal requests.
 	if (iotWebConf.handleCaptivePortal()) { return; }
 
@@ -316,7 +322,7 @@ void handleRoot()
 	s += "Tenant host / id: " + String(paramTenantValue) +  "<br/>";
 	s += "Polling interval (sec): " + String(paramPollIntervalValue) +  "<br/>";
 	s += "Number of LEDs: " + String(paramNumLedsValue) +  "<br/><br/>";
-	s += "Start <a href=\"startDevicelogin\">device login</a> flow.";
+	s += "Start <a href=\"/api/startDevicelogin\">device login</a> flow.";
 	s += "</body>\n</html>\n";
 
 	server.send(200, "text/html", s);
@@ -324,7 +330,7 @@ void handleRoot()
 
 boolean formValidator()
 {
-	Serial.println("Validating form.");
+	DBG_PRINTLN(F("Validating form."));
 	boolean valid = true;
 
 	int l1 = server.arg(paramClientId.getId()).length();
@@ -360,7 +366,7 @@ boolean formValidator()
 
 // Config was saved
 void onConfigSaved() {
-	Serial.println("Configuration was updated.");
+	DBG_PRINTLN(F("Configuration was updated."));
 	ws2812fx.setLength(atoi(paramNumLedsValue));
 }
 
@@ -368,7 +374,7 @@ void onConfigSaved() {
 void handleStartDevicelogin() {
 	// Only if not already started
 	if (state != SMODEDEVICELOGINSTARTED) {
-		Serial.println("handleStartDevicelogin()");
+		DBG_PRINTLN(F("handleStartDevicelogin()"));
 
 		// Request devicelogin context
 		const size_t capacity = JSON_OBJECT_SIZE(6) + 540;
@@ -421,7 +427,7 @@ void pollForToken() {
 	const size_t capacity = JSON_OBJECT_SIZE(7) + 4090; // Case 2: Successful (bigger size of both variants, so take that one as capacity)
 	DynamicJsonDocument responseDoc(capacity);
 	boolean res = requestJsonApi(responseDoc, "https://login.microsoftonline.com/" + String(paramTenantValue) + "/oauth2/v2.0/token", payload, capacity);
-	// Serial.println(responseDoc.as<String>());
+	// DBG_PRINTLN(responseDoc.as<String>());
 
 	if (!res) {
 		state = SMODEDEVICELOGINFAILED;
@@ -465,7 +471,7 @@ void pollPresence() {
 	} else if (responseDoc.containsKey("error")) {
 		const char* _error_code = responseDoc["error"]["code"];
 		if (strcmp(_error_code, "InvalidAuthenticationToken")) {
-			Serial.println("pollPresence() - Refresh needed");
+			DBG_PRINTLN(F("pollPresence() - Refresh needed"));
 			tsPolling = millis();
 			state = SMODEREFRESHTOKEN;
 		} else {
@@ -488,7 +494,7 @@ boolean refreshToken() {
 	boolean success = false;
 	// See: https://docs.microsoft.com/de-de/azure/active-directory/develop/v1-protocols-oauth-code#refreshing-the-access-tokens
 	String payload = "client_id=" + String(paramClientIdValue) + "&grant_type=refresh_token&refresh_token=" + refresh_token;
-	Serial.println("refreshToken()");
+	DBG_PRINTLN(F("refreshToken()"));
 
 	const size_t capacity = JSON_OBJECT_SIZE(7) + 4120;
 	DynamicJsonDocument responseDoc(capacity);
@@ -512,10 +518,10 @@ boolean refreshToken() {
 			expires = millis() + (_expires_in * 1000); // Calculate timestamp when token expires
 		}
 
-		Serial.println("refreshToken() - Success");
+		DBG_PRINTLN(F("refreshToken() - Success"));
 		state = SMODEPOLLPRESENCE;
 	} else {
-		Serial.println("refreshToken() - Error:");
+		DBG_PRINTLN(F("refreshToken() - Error:"));
 		// Set retry after timeout
 		tsPolling = millis() + (DEFAULT_ERROR_RETRY_INTERVAL * 1000);
 	}
@@ -535,7 +541,7 @@ void statemachine() {
 		setAnimation(0, FX_MODE_THEATER_CHASE, GREEN);
 		loadContext();
 		// WiFi client
-		Serial.println("Wifi connected, waiting for requests ...");
+		DBG_PRINTLN(F("Wifi connected, waiting for requests ..."));
 	}
 
 	// Statemachine: Devicelogin started
@@ -551,7 +557,7 @@ void statemachine() {
 
 	// Statemachine: Devicelogin failed
 	if (state == SMODEDEVICELOGINFAILED) {
-		Serial.println("Device login failed");
+		DBG_PRINTLN(F("Device login failed"));
 		state = SMODEWIFICONNECTED;	// Return back to initial mode
 	}
 
@@ -565,7 +571,7 @@ void statemachine() {
 	// Statemachine: Poll for presence information, even if there was a error before (handled below)
 	if (state == SMODEPOLLPRESENCE) {
 		if (millis() >= tsPolling) {
-			Serial.println("Polling presence info ...");
+			DBG_PRINTLN(F("Polling presence info ..."));
 			pollPresence();
 			tsPolling = millis() + (atoi(paramPollIntervalValue) * 1000);
 			Serial.printf("--> Availability: %s, Activity: %s\n\n", availability.c_str(), activity.c_str());
@@ -607,7 +613,7 @@ void statemachine() {
 	// Update laststate
 	if (laststate != state) {
 		laststate = state;
-		Serial.println("======================================================================");
+		DBG_PRINTLN(F("======================================================================"));
 	}
 }
 
@@ -618,8 +624,8 @@ void statemachine() {
 void setup()
 {
 	Serial.begin(115200);
-	Serial.println();
-	Serial.println("setup() Starting up...");
+	DBG_PRINTLN();
+	DBG_PRINTLN(F("setup() Starting up..."));
 	// Serial.setDebugOutput(true);
 
 	// WS2812FX
@@ -651,13 +657,13 @@ void setup()
 	server.on("/config", [] { iotWebConf.handleConfig(); });
 	server.onNotFound([]() { iotWebConf.handleNotFound(); });
 
-	Serial.println("setup() ready...");
+	DBG_PRINTLN(F("setup() ready..."));
 
 	// SPIFFS
 	bool initok = false;
   	initok = SPIFFS.begin();
-	Serial.print("SPIFFS.begin() ");
-	Serial.println(initok);
+	DBG_PRINT(F("SPIFFS.begin() "));
+	DBG_PRINTLN(initok);
 }
 
 void loop()
