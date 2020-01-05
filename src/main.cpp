@@ -38,8 +38,6 @@
 #include "FS.h"
 #include "SPIFFS.h"
 
-#include "request_handler.h"
-
 
 // CA certificate for login.microsoftonline.com
 const char* rootCACertificate = \
@@ -209,6 +207,9 @@ boolean loadContext() {
 }
 
 
+#include "request_handler.h"
+
+
 // Neopixel control
 void setAnimation(uint8_t segment, uint8_t mode = FX_MODE_STATIC, uint32_t color = RED, uint16_t speed = 3000, bool reverse = false) {
 	uint16_t startLed, endLed = 0;
@@ -216,7 +217,7 @@ void setAnimation(uint8_t segment, uint8_t mode = FX_MODE_STATIC, uint32_t color
 	// Support only one segment for the moment
 	if (segment == 0) {
 		startLed = 0;
-		endLed = NUMLEDS - 1;
+		endLed = atoi(paramNumLedsValue) - 1;
 	}
 	Serial.printf("setAnimation: %d, %d-%d, Mode: %d, Color: %d, Speed: %d\n", segment, startLed, endLed, mode, color, speed);
 	ws2812fx.setSegment(segment, startLed, endLed, mode, color, speed, reverse);
