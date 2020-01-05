@@ -87,7 +87,7 @@ uint8_t interval = 5;
 String access_token = "";
 String refresh_token = "";
 String id_token = "";
-uint8_t expires = 0;
+unsigned int expires = 0;
 
 String availability = "";
 String activity = "";
@@ -102,10 +102,10 @@ String activity = "";
 #define SMODEPOLLPRESENCE 21         // Poll for presence
 #define SMODEREFRESHTOKEN 22          // Access token needs refresh
 #define SMODEPRESENCEREQUESTERROR 23       // Access token needs refresh
-int state = SMODEINITIAL;
-int laststate = SMODEINITIAL;
+uint8_t state = SMODEINITIAL;
+uint8_t laststate = SMODEINITIAL;
 static unsigned long tsPolling = 0;
-unsigned int retries = 0;
+uint8_t retries = 0;
 
 
 /**
@@ -253,8 +253,7 @@ boolean requestJsonApi(JsonDocument& doc, String url, String payload = "", size_
 		// Send auth header?
 		if (sendAuth) {
 			https.addHeader("Authorization", "Bearer " + access_token);
-			DBG_PRINT(F("[HTTPS] Auth token valid for %d s."));
-			DBG_PRINTLN(getTokenLifetime());
+			Serial.printf("[HTTPS] Auth token valid for %d s.\n", getTokenLifetime());
 		}
 
 		// Start connection and send HTTP header
@@ -447,7 +446,7 @@ void pollForToken() {
 			access_token = responseDoc["access_token"].as<String>();
 			refresh_token = responseDoc["refresh_token"].as<String>();
 			id_token = responseDoc["id_token"].as<String>();
-			int _expires_in = responseDoc["expires_in"].as<unsigned int>();
+			unsigned int _expires_in = responseDoc["expires_in"].as<unsigned int>();
 			expires = millis() + (_expires_in * 1000); // Calculate timestamp when token expires
 
 			// Set state
