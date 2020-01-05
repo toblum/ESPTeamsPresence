@@ -37,8 +37,8 @@
 #include <WS2812FX.h>
 
 // Global settings
-#define NUMLEDS 7  // number of LEDs on the strip
-#define DATAPIN D1 // GPIO pin used to drive the LED strip
+#define NUMLEDS 7  								// number of LEDs on the strip
+#define DATAPIN D1 								// GPIO pin used to drive the LED strip
 #define STATUS_PIN LED_BUILTIN					// User builtin LED for status
 #define DEFAULT_POLLING_PRESENCE_INTERVAL 15	// Default interval to poll for presence info (seconds)
 #define DEFAULT_ERROR_RETRY_INTERVAL 30			// Default interval to try again after errors
@@ -76,7 +76,6 @@ IotWebConfParameter paramNumLeds = IotWebConfParameter("Number of LEDs", "numLed
 BearSSL::WiFiClientSecure client;
 
 // WS2812FX
-
 WS2812FX ws2812fx = WS2812FX(NUMLEDS, DATAPIN, NEO_GRB + NEO_KHZ800);
 
 // Global variables
