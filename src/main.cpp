@@ -217,7 +217,7 @@ void setAnimation(uint8_t segment, uint8_t mode = FX_MODE_STATIC, uint32_t color
 	// Support only one segment for the moment
 	if (segment == 0) {
 		startLed = 0;
-		endLed = atoi(paramNumLedsValue) - 1;
+		endLed = atoi(paramNumLedsValue);
 	}
 	Serial.printf("setAnimation: %d, %d-%d, Mode: %d, Color: %d, Speed: %d\n", segment, startLed, endLed, mode, color, speed);
 	ws2812fx.setSegment(segment, startLed, endLed, mode, color, speed, reverse);
