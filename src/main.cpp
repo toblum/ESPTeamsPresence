@@ -31,14 +31,37 @@
 
 #include <Arduino.h>
 #include <IotWebConf.h>
-#include <ESP8266HTTPClient.h>
-#include <WiFiClientSecureBearSSL.h>
+#include <WiFiClientSecure.h>
+#include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <WS2812FX.h>
 
+const char* rootCACertificate = \
+"-----BEGIN CERTIFICATE-----\n" \
+"MIIDdzCCAl+gAwIBAgIEAgAAuTANBgkqhkiG9w0BAQUFADBaMQswCQYDVQQGEwJJ\n" \
+"RTESMBAGA1UEChMJQmFsdGltb3JlMRMwEQYDVQQLEwpDeWJlclRydXN0MSIwIAYD\n" \
+"VQQDExlCYWx0aW1vcmUgQ3liZXJUcnVzdCBSb290MB4XDTAwMDUxMjE4NDYwMFoX\n" \
+"DTI1MDUxMjIzNTkwMFowWjELMAkGA1UEBhMCSUUxEjAQBgNVBAoTCUJhbHRpbW9y\n" \
+"ZTETMBEGA1UECxMKQ3liZXJUcnVzdDEiMCAGA1UEAxMZQmFsdGltb3JlIEN5YmVy\n" \
+"VHJ1c3QgUm9vdDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKMEuyKr\n" \
+"mD1X6CZymrV51Cni4eiVgLGw41uOKymaZN+hXe2wCQVt2yguzmKiYv60iNoS6zjr\n" \
+"IZ3AQSsBUnuId9Mcj8e6uYi1agnnc+gRQKfRzMpijS3ljwumUNKoUMMo6vWrJYeK\n" \
+"mpYcqWe4PwzV9/lSEy/CG9VwcPCPwBLKBsua4dnKM3p31vjsufFoREJIE9LAwqSu\n" \
+"XmD+tqYF/LTdB1kC1FkYmGP1pWPgkAx9XbIGevOF6uvUA65ehD5f/xXtabz5OTZy\n" \
+"dc93Uk3zyZAsuT3lySNTPx8kmCFcB5kpvcY67Oduhjprl3RjM71oGDHweI12v/ye\n" \
+"jl0qhqdNkNwnGjkCAwEAAaNFMEMwHQYDVR0OBBYEFOWdWTCCR1jMrPoIVDaGezq1\n" \
+"BE3wMBIGA1UdEwEB/wQIMAYBAf8CAQMwDgYDVR0PAQH/BAQDAgEGMA0GCSqGSIb3\n" \
+"DQEBBQUAA4IBAQCFDF2O5G9RaEIFoN27TyclhAO992T9Ldcw46QQF+vaKSm2eT92\n" \
+"9hkTI7gQCvlYpNRhcL0EYWoSihfVCr3FvDB81ukMJY2GQE/szKN+OMY3EU/t3Wgx\n" \
+"jkzSswF07r51XgdIGn9w/xZchMB5hbgF/X++ZRGjD8ACtPhSNzkE1akxehi/oCr0\n" \
+"Epn3o0WC4zxe9Z2etciefC7IpJ5OCBRLbf1wbWsaY71k5h+3zvDyny67G7fyUIhz\n" \
+"ksLi4xaNmjICq44Y3ekQEe5+NauQrz4wlHrQMz2nZQ/1/I6eYs9HRCwBXbsdtTLS\n" \
+"R9I4LtD+gdwyah617jzV/OeBHRnDJELqYzmp\n" \
+"-----END CERTIFICATE-----\n";
+
 // Global settings
 #define NUMLEDS 7  								// number of LEDs on the strip
-#define DATAPIN D1 								// GPIO pin used to drive the LED strip
+#define DATAPIN 12 								// GPIO pin used to drive the LED strip (20 == GPIO/D13)
 #define STATUS_PIN LED_BUILTIN					// User builtin LED for status
 #define DEFAULT_POLLING_PRESENCE_INTERVAL 15	// Default interval to poll for presence info (seconds)
 #define DEFAULT_ERROR_RETRY_INTERVAL 30			// Default interval to try again after errors
@@ -73,7 +96,7 @@ IotWebConfParameter paramPollInterval = IotWebConfParameter("Presence polling in
 IotWebConfParameter paramNumLeds = IotWebConfParameter("Number of LEDs", "numLeds", paramNumLedsValue, INTEGER_LEN, "number", "1..500", (const char*)(NUMLEDS), "min='1' max='500' step='1'");
 
 // HTTP client
-BearSSL::WiFiClientSecure client;
+WiFiClientSecure client;
 
 // WS2812FX
 WS2812FX ws2812fx = WS2812FX(NUMLEDS, DATAPIN, NEO_GRB + NEO_KHZ800);
@@ -123,57 +146,57 @@ void saveContext() {
 	contextDoc["refresh_token"] = refresh_token.c_str();
 	contextDoc["id_token"] = id_token.c_str();
 
-	File contextFile = SPIFFS.open(CONTEXT_FILE, "w");
-	serializeJsonPretty(contextDoc, contextFile);
-	contextFile.close();
-	DBG_PRINTLN(F("saveContext() - Success"));
+	// File contextFile = SPIFFS.open(CONTEXT_FILE, "w");
+	// serializeJsonPretty(contextDoc, contextFile);
+	// contextFile.close();
+	// DBG_PRINTLN(F("saveContext() - Success"));
 	// DBG_PRINTLN(contextDoc.as<String>());
 }
 
 boolean loadContext() {
-	File file = SPIFFS.open(CONTEXT_FILE, "r");
+	// File file = SPIFFS.open(CONTEXT_FILE, "r");
 	boolean success = false;
 
-	if (!file) {
-		DBG_PRINTLN(F("loadContext() - No file found"));
-	} else {
-		size_t size = file.size();
-		if (size == 0) {
-			DBG_PRINTLN(F("loadContext() - File empty"));
-		} else {
-			const int capacity = JSON_OBJECT_SIZE(3) + 4000;
-			DynamicJsonDocument contextDoc(capacity);
-			DeserializationError err = deserializeJson(contextDoc, file);
+	// if (!file) {
+	// 	DBG_PRINTLN(F("loadContext() - No file found"));
+	// } else {
+	// 	size_t size = file.size();
+	// 	if (size == 0) {
+	// 		DBG_PRINTLN(F("loadContext() - File empty"));
+	// 	} else {
+	// 		const int capacity = JSON_OBJECT_SIZE(3) + 4000;
+	// 		DynamicJsonDocument contextDoc(capacity);
+	// 		DeserializationError err = deserializeJson(contextDoc, file);
 
-			if (err) {
-				DBG_PRINT(F("loadContext() - deserializeJson() failed with code: "));
-				DBG_PRINTLN(err.c_str());
-			} else {
-				int numSettings = 0;
-				if (!contextDoc["access_token"].isNull()) {
-					access_token = contextDoc["access_token"].as<String>();
-					numSettings++;
-				}
-				if (!contextDoc["refresh_token"].isNull()) {
-					refresh_token = contextDoc["refresh_token"].as<String>();
-					numSettings++;
-				}
-				if (!contextDoc["id_token"].isNull()){
-					id_token = contextDoc["id_token"].as<String>();
-					numSettings++;
-				}
-				if (numSettings == 3) {
-					state = SMODEREFRESHTOKEN;
-					success = true;
-					DBG_PRINTLN(F("loadContext() - Success"));
-				} else {
-					Serial.printf("loadContext() - ERROR Number of valid settings in file: %d, should be 3.\n", numSettings);
-				}
-				// DBG_PRINTLN(contextDoc.as<String>());
-			}
-		}
-		file.close();
-	}
+	// 		if (err) {
+	// 			DBG_PRINT(F("loadContext() - deserializeJson() failed with code: "));
+	// 			DBG_PRINTLN(err.c_str());
+	// 		} else {
+	// 			int numSettings = 0;
+	// 			if (!contextDoc["access_token"].isNull()) {
+	// 				access_token = contextDoc["access_token"].as<String>();
+	// 				numSettings++;
+	// 			}
+	// 			if (!contextDoc["refresh_token"].isNull()) {
+	// 				refresh_token = contextDoc["refresh_token"].as<String>();
+	// 				numSettings++;
+	// 			}
+	// 			if (!contextDoc["id_token"].isNull()){
+	// 				id_token = contextDoc["id_token"].as<String>();
+	// 				numSettings++;
+	// 			}
+	// 			if (numSettings == 3) {
+	// 				state = SMODEREFRESHTOKEN;
+	// 				success = true;
+	// 				DBG_PRINTLN(F("loadContext() - Success"));
+	// 			} else {
+	// 				Serial.printf("loadContext() - ERROR Number of valid settings in file: %d, should be 3.\n", numSettings);
+	// 			}
+	// 			// DBG_PRINTLN(contextDoc.as<String>());
+	// 		}
+	// 	}
+	// 	file.close();
+	// }
 
 	return success;
 }
@@ -236,8 +259,10 @@ void setPresenceAnimation() {
  */
 boolean requestJsonApi(JsonDocument& doc, String url, String payload = "", size_t capacity = 0, String type = "POST", boolean sendAuth = false) {
 	// WiFiClient
-	std::unique_ptr<BearSSL::WiFiClientSecure>client(new BearSSL::WiFiClientSecure);
-	client->setInsecure();
+	WiFiClientSecure *client = new WiFiClientSecure;
+	client -> setCACert(rootCACertificate);
+	// client->setInsecure();
+	
 
 	// HTTPClient
 	HTTPClient https;
@@ -659,7 +684,7 @@ void setup()
 
 	// SPIFFS
 	bool initok = false;
-  	initok = SPIFFS.begin();
+  	// initok = SPIFFS.begin();
 	DBG_PRINT(F("SPIFFS.begin() "));
 	DBG_PRINTLN(initok);
 }
