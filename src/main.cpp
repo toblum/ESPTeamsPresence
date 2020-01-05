@@ -35,7 +35,11 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <WS2812FX.h>
+#include "FS.h"
+#include "SPIFFS.h"
 
+
+// CA certificate for login.microsoftonline.com
 const char* rootCACertificate = \
 "-----BEGIN CERTIFICATE-----\n" \
 "MIIDdzCCAl+gAwIBAgIEAgAAuTANBgkqhkiG9w0BAQUFADBaMQswCQYDVQQGEwJJ\n" \
@@ -66,7 +70,7 @@ const char* rootCACertificate = \
 #define DEFAULT_POLLING_PRESENCE_INTERVAL 15	// Default interval to poll for presence info (seconds)
 #define DEFAULT_ERROR_RETRY_INTERVAL 30			// Default interval to try again after errors
 #define TOKEN_REFRESH_TIMEOUT 60	 			// Number of seconds until expiration before token gets refreshed
-#define CONTEXT_FILE "context.json"				// Filename of the context file
+#define CONTEXT_FILE "/context.json"				// Filename of the context file
 
 #define DBG_PRINT(x) Serial.print(x)
 #define DBG_PRINTLN(x) Serial.println(x)
@@ -146,57 +150,58 @@ void saveContext() {
 	contextDoc["refresh_token"] = refresh_token.c_str();
 	contextDoc["id_token"] = id_token.c_str();
 
-	// File contextFile = SPIFFS.open(CONTEXT_FILE, "w");
-	// serializeJsonPretty(contextDoc, contextFile);
-	// contextFile.close();
-	// DBG_PRINTLN(F("saveContext() - Success"));
+	File contextFile = SPIFFS.open(CONTEXT_FILE, FILE_WRITE);
+	size_t bytesWritten = serializeJsonPretty(contextDoc, contextFile);
+	contextFile.close();
+	DBG_PRINT(F("saveContext() - Success: "));
+	DBG_PRINTLN(bytesWritten);
 	// DBG_PRINTLN(contextDoc.as<String>());
 }
 
 boolean loadContext() {
-	// File file = SPIFFS.open(CONTEXT_FILE, "r");
+	File file = SPIFFS.open(CONTEXT_FILE);
 	boolean success = false;
 
-	// if (!file) {
-	// 	DBG_PRINTLN(F("loadContext() - No file found"));
-	// } else {
-	// 	size_t size = file.size();
-	// 	if (size == 0) {
-	// 		DBG_PRINTLN(F("loadContext() - File empty"));
-	// 	} else {
-	// 		const int capacity = JSON_OBJECT_SIZE(3) + 4000;
-	// 		DynamicJsonDocument contextDoc(capacity);
-	// 		DeserializationError err = deserializeJson(contextDoc, file);
+	if (!file) {
+		DBG_PRINTLN(F("loadContext() - No file found"));
+	} else {
+		size_t size = file.size();
+		if (size == 0) {
+			DBG_PRINTLN(F("loadContext() - File empty"));
+		} else {
+			const int capacity = JSON_OBJECT_SIZE(3) + 4000;
+			DynamicJsonDocument contextDoc(capacity);
+			DeserializationError err = deserializeJson(contextDoc, file);
 
-	// 		if (err) {
-	// 			DBG_PRINT(F("loadContext() - deserializeJson() failed with code: "));
-	// 			DBG_PRINTLN(err.c_str());
-	// 		} else {
-	// 			int numSettings = 0;
-	// 			if (!contextDoc["access_token"].isNull()) {
-	// 				access_token = contextDoc["access_token"].as<String>();
-	// 				numSettings++;
-	// 			}
-	// 			if (!contextDoc["refresh_token"].isNull()) {
-	// 				refresh_token = contextDoc["refresh_token"].as<String>();
-	// 				numSettings++;
-	// 			}
-	// 			if (!contextDoc["id_token"].isNull()){
-	// 				id_token = contextDoc["id_token"].as<String>();
-	// 				numSettings++;
-	// 			}
-	// 			if (numSettings == 3) {
-	// 				state = SMODEREFRESHTOKEN;
-	// 				success = true;
-	// 				DBG_PRINTLN(F("loadContext() - Success"));
-	// 			} else {
-	// 				Serial.printf("loadContext() - ERROR Number of valid settings in file: %d, should be 3.\n", numSettings);
-	// 			}
-	// 			// DBG_PRINTLN(contextDoc.as<String>());
-	// 		}
-	// 	}
-	// 	file.close();
-	// }
+			if (err) {
+				DBG_PRINT(F("loadContext() - deserializeJson() failed with code: "));
+				DBG_PRINTLN(err.c_str());
+			} else {
+				int numSettings = 0;
+				if (!contextDoc["access_token"].isNull()) {
+					access_token = contextDoc["access_token"].as<String>();
+					numSettings++;
+				}
+				if (!contextDoc["refresh_token"].isNull()) {
+					refresh_token = contextDoc["refresh_token"].as<String>();
+					numSettings++;
+				}
+				if (!contextDoc["id_token"].isNull()){
+					id_token = contextDoc["id_token"].as<String>();
+					numSettings++;
+				}
+				if (numSettings == 3) {
+					state = SMODEREFRESHTOKEN;
+					success = true;
+					DBG_PRINTLN(F("loadContext() - Success"));
+				} else {
+					Serial.printf("loadContext() - ERROR Number of valid settings in file: %d, should be 3.\n", numSettings);
+				}
+				// DBG_PRINTLN(contextDoc.as<String>());
+			}
+		}
+		file.close();
+	}
 
 	return success;
 }
@@ -261,8 +266,6 @@ boolean requestJsonApi(JsonDocument& doc, String url, String payload = "", size_
 	// WiFiClient
 	WiFiClientSecure *client = new WiFiClientSecure;
 	client -> setCACert(rootCACertificate);
-	// client->setInsecure();
-	
 
 	// HTTPClient
 	HTTPClient https;
@@ -682,11 +685,12 @@ void setup()
 
 	DBG_PRINTLN(F("setup() ready..."));
 
-	// SPIFFS
-	bool initok = false;
-  	// initok = SPIFFS.begin();
-	DBG_PRINT(F("SPIFFS.begin() "));
-	DBG_PRINTLN(initok);
+	// SPIFFS.begin() - Format if mount failed
+	DBG_PRINTLN(F("SPIFFS.begin() "));
+	if(!SPIFFS.begin(true)) {
+		DBG_PRINTLN("SPIFFS Mount Failed");
+        return;
+    }
 }
 
 void loop()
