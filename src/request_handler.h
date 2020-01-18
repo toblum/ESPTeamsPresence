@@ -76,8 +76,7 @@ boolean requestJsonApi(JsonDocument& doc, String url, String payload = "", size_
  */
 
 // Requests to /
-void handleRoot()
-{
+void handleRoot() {
 	DBG_PRINTLN("handleRoot()");
 	// -- Let IotWebConf test and handle captive portal requests.
 	if (iotWebConf.handleCaptivePortal()) { return; }
@@ -95,8 +94,20 @@ void handleRoot()
 	server.send(200, "text/html", s);
 }
 
-boolean formValidator()
-{
+void handleGetSettings() {
+	DBG_PRINTLN("handleGetSettings()");
+	
+	const int capacity = JSON_OBJECT_SIZE(4);
+	StaticJsonDocument<capacity> responseDoc;
+	responseDoc["client_id"].set(paramClientIdValue);
+	responseDoc["tenant"].set(paramTenantValue);
+	responseDoc["poll_interval"].set(paramPollIntervalValue);
+	responseDoc["num_leds"].set(paramNumLedsValue);
+
+	server.send(200, "application/json", responseDoc.as<String>());
+}
+
+boolean formValidator() {
 	DBG_PRINTLN(F("Validating form."));
 	boolean valid = true;
 
