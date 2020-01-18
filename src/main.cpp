@@ -133,6 +133,10 @@ uint8_t laststate = SMODEINITIAL;
 static unsigned long tsPolling = 0;
 uint8_t retries = 0;
 
+// Multicore
+TaskHandle_t TaskNeopixel; 
+
+
 
 /**
  * Helper
@@ -472,6 +476,16 @@ void statemachine() {
 
 
 /**
+ * Multicore
+ */
+void neopixelTask(void * parameter) {
+	for (;;) {
+		ws2812fx.service();
+	}
+}
+
+
+/**
  * Main functions
  */
 void setup()
@@ -518,14 +532,23 @@ void setup()
 		DBG_PRINTLN("SPIFFS Mount Failed");
         return;
     }
+
+	// Pin neopixel logic to core 0
+	xTaskCreatePinnedToCore(
+		neopixelTask,
+		"Neopixels",
+		1000,
+		NULL,
+		1,
+		&TaskNeopixel,
+		0);
+	
 }
 
 void loop()
 {
 	// iotWebConf - doLoop should be called as frequently as possible.
 	iotWebConf.doLoop();
-
-	ws2812fx.service();
 
 	statemachine();
 }
