@@ -15,6 +15,8 @@ boolean requestJsonApi(JsonDocument& doc, String url, String payload = "", size_
 
 	// DBG_PRINT("[HTTPS] begin...\n");
     if (https.begin(*client, url)) {  // HTTPS
+		https.setConnectTimeout(10000);
+		https.setTimeout(10000);
 
 		// Send auth header?
 		if (sendAuth) {
@@ -64,8 +66,8 @@ boolean requestJsonApi(JsonDocument& doc, String url, String payload = "", size_
 		}
     } else {
     	DBG_PRINTLN(F("[HTTPS] Unable to connect"));
+		return false;
     }
-	return false;
 }
 
 
