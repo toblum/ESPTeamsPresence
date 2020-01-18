@@ -37,6 +37,7 @@
 #include <WS2812FX.h>
 #include "FS.h"
 #include "SPIFFS.h"
+#include "ESP32_RMT_Driver.h"
 
 
 // CA certificate for login.microsoftonline.com
@@ -484,6 +485,14 @@ void neopixelTask(void * parameter) {
 	}
 }
 
+void customShow(void) {
+  uint8_t *pixels = ws2812fx.getPixels();
+  // numBytes is one more then the size of the ws2812fx's *pixels array.
+  // the extra byte is used by the driver to insert the LED reset pulse at the end.
+  uint16_t numBytes = ws2812fx.getNumBytes() + 1;
+  rmt_write_sample(RMT_CHANNEL_0, pixels, numBytes, false); // channel 0
+}
+
 
 /**
  * Main functions
@@ -497,6 +506,7 @@ void setup()
 
 	// WS2812FX
 	ws2812fx.init();
+	rmt_tx_int(RMT_CHANNEL_0, ws2812fx.getPin());
 	ws2812fx.start();
 	setAnimation(0, FX_MODE_STATIC, WHITE);
 
@@ -517,6 +527,7 @@ void setup()
 
 	// WS2812FX
 	ws2812fx.setLength(atoi(paramNumLedsValue));
+	ws2812fx.setCustomShow(customShow);
 
 	// HTTP server - Set up required URL handlers on the web server.
 	server.on("/", handleRoot);
