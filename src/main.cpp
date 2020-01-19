@@ -213,6 +213,7 @@ boolean loadContext() {
 
 
 #include "request_handler.h"
+#include "spiffs_webserver.h"
 
 
 // Neopixel control
@@ -530,11 +531,22 @@ void setup()
 	ws2812fx.setCustomShow(customShow);
 
 	// HTTP server - Set up required URL handlers on the web server.
-	server.on("/", handleRoot);
-	server.on("/api/startDevicelogin", [] { handleStartDevicelogin(); });
+	server.on("/", HTTP_GET, handleRoot);
+	server.on("/config", HTTP_GET, [] { iotWebConf.handleConfig(); });
+	server.on("/upload", HTTP_GET, [] { handleMinimalUpload(); });
+	server.on("/api/startDevicelogin", HTTP_GET, [] { handleStartDevicelogin(); });
 	server.on("/api/settings", HTTP_GET, [] { handleGetSettings(); });
-	server.on("/config", [] { iotWebConf.handleConfig(); });
-	server.onNotFound([]() { iotWebConf.handleNotFound(); });
+	server.on("/fs/delete", HTTP_DELETE, handleFileDelete);
+	server.on("/fs/list", HTTP_GET, handleFileList);
+	server.on("/fs/upload", HTTP_POST, []() {
+		server.send(200, "text/plain", "");
+	}, handleFileUpload);
+
+	server.onNotFound([]() {
+		if (!handleFileRead(server.uri())) {
+			server.send(404, "text/plain", "FileNotFound");
+		}
+	});
 
 	DBG_PRINTLN(F("setup() ready..."));
 
@@ -554,7 +566,6 @@ void setup()
 		1,
 		&TaskNeopixel,
 		0);
-	
 }
 
 void loop()

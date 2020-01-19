@@ -97,12 +97,21 @@ void handleRoot() {
 void handleGetSettings() {
 	DBG_PRINTLN("handleGetSettings()");
 	
-	const int capacity = JSON_OBJECT_SIZE(4);
+	const int capacity = JSON_OBJECT_SIZE(12);
 	StaticJsonDocument<capacity> responseDoc;
 	responseDoc["client_id"].set(paramClientIdValue);
 	responseDoc["tenant"].set(paramTenantValue);
 	responseDoc["poll_interval"].set(paramPollIntervalValue);
 	responseDoc["num_leds"].set(paramNumLedsValue);
+
+	responseDoc["heap"].set(ESP.getFreeHeap());
+	responseDoc["min_heap"].set(ESP.getMinFreeHeap());
+    responseDoc["sketch_size"].set(ESP.getSketchSize());
+    responseDoc["free_sketch_space"].set(ESP.getFreeSketchSpace());
+    responseDoc["flash_chip_size"].set(ESP.getFlashChipSize());
+    responseDoc["flash_chip_speed"].set(ESP.getFlashChipSpeed());
+    responseDoc["sdk_version"].set(ESP.getSdkVersion());
+    responseDoc["cpu_freq"].set(ESP.getCpuFreqMHz());
 
 	server.send(200, "application/json", responseDoc.as<String>());
 }
