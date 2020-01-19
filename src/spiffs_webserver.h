@@ -22,7 +22,7 @@ void handleMinimalUpload() {
 				<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\
 			</head>\
 			<body>\
-				<form action=\"/fsapi/upload\" method=\"post\" enctype=\"multipart/form-data\">\
+				<form action=\"/fs/upload\" method=\"post\" enctype=\"multipart/form-data\">\
 				<input type=\"file\" name=\"data\">\
 				<input type=\"text\" name=\"path\" value=\"/\">\
 				<button>Upload</button>\
@@ -86,7 +86,6 @@ void handleFileList() {
 
 	File root = SPIFFS.open(path);
 	path = String();
-
 	String output = "[";
 	if (root.isDirectory()) {
 		File file = root.openNextFile();
