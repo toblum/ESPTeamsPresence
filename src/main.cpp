@@ -149,7 +149,7 @@ int getTokenLifetime() {
 
 // Save context information to file in SPIFFS
 void saveContext() {
-	const size_t capacity = JSON_OBJECT_SIZE(3);
+	const size_t capacity = JSON_OBJECT_SIZE(3) + 5000;
 	DynamicJsonDocument contextDoc(capacity);
 	contextDoc["access_token"] = access_token.c_str();
 	contextDoc["refresh_token"] = refresh_token.c_str();
