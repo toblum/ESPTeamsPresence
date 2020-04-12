@@ -82,13 +82,42 @@ void handleRoot() {
 	if (iotWebConf.handleCaptivePortal()) { return; }
 
 	String s = "<!DOCTYPE html>\n<html lang=\"en\">\n<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=no\"/>";
-	s += "<title>IotWebConf 01 Minimal</title></head>\n<body><h2>Hello world!</h2>";
-	s += "Go to <a href=\"config\">configure page</a> to change settings.<br/><br/>";
-	s += "Client id: " + String(paramClientIdValue) +  "<br/>";
-	s += "Tenant host / id: " + String(paramTenantValue) +  "<br/>";
-	s += "Polling interval (sec): " + String(paramPollIntervalValue) +  "<br/>";
-	s += "Number of LEDs: " + String(paramNumLedsValue) +  "<br/><br/>";
-	s += "Start <a href=\"/api/startDevicelogin\">device login</a> flow.";
+	s += "<link href=\"https://fonts.googleapis.com/css?family=Press+Start+2P\" rel=\"stylesheet\">";
+	s += "<link href=\"https://unpkg.com/nes.css@2.3.0/css/nes.min.css\" rel=\"stylesheet\" />";
+	s += "<style type=\"text/css\">\n";
+	s += "body {padding:3.5rem}\n";
+	s += ".mt-s {margin-top:1.0rem}\n";
+	s += ".mt {margin-top:3.5rem}\n";
+	s += "</style>\n";
+	s += "<title>ESP32 teams presence</title></head>\n";
+	s += "<body><h2>ESP32 teams presence</h2>";
+
+	s += "<section class=\"mt\"><div class=\"nes-balloon from-left\">";
+	if (access_token == "") {
+		s += "<p class=\"note nes-text is-error\">No authentication infos found, start device login flow to complete widget setup!</p>";
+	} else {
+		s += "<p class=\"note nes-text\">Device setup complete, but you can start the device login flow if you need to re-authenticate.</p>";
+	}
+	s += "</div><div><a class=\"nes-btn\" href=\"/api/startDevicelogin\">Start device login</a></div>";
+	s += "</section>";
+
+	s += "<div class=\"nes-balloon from-left mt\">";
+	s += "Go to <a href=\"config\">configuration page</a> to change settings.";
+	s += "</div>";
+	s += "<section class=\"nes-container with-title\"><h3 class=\"title\">Current settings</h3>";
+	s += "<div class=\"nes-field mt-s\"><label for=\"name_field\">Client id</label><input type=\"text\" id=\"name_field\" class=\"nes-input\" disabled value=\"" + String(paramClientIdValue) +  "\"></div>";
+	s += "<div class=\"nes-field mt-s\"><label for=\"name_field\">Tenant host / id</label><input type=\"text\" id=\"name_field\" class=\"nes-input\" disabled value=\"" + String(paramTenantValue) +  "\"></div>";
+	s += "<div class=\"nes-field mt-s\"><label for=\"name_field\">Polling interval (sec)</label><input type=\"text\" id=\"name_field\" class=\"nes-input\" disabled value=\"" + String(paramPollIntervalValue) +  "\"></div>";
+	s += "<div class=\"nes-field mt-s\"><label for=\"name_field\">Number of LEDs</label><input type=\"text\" id=\"name_field\" class=\"nes-input\" disabled value=\"" + String(paramNumLedsValue) +  "\"></div>";
+	s += "</section>";
+
+	s += "<section class=\"nes-container with-title mt\"><h3 class=\"title\">Memory usage</h3>";
+	s += "<div>Sketch: " + String(ESP.getSketchSize()) + " of " + String(ESP.getFreeSketchSpace()) + " bytes free</div>";
+	s += "<progress class=\"nes-progress\" value=\"" + String(ESP.getFreeSketchSpace() - ESP.getSketchSize()) + "\" max=\"" + String(ESP.getFreeSketchSpace()) + "\"></progress>";
+	s += "<div class=\"mt-s\">RAM: " + String(ESP.getFreeHeap()) + " of 327680 bytes free</div>";
+	s += "<progress class=\"nes-progress\" value=\"" + String(327680 - ESP.getFreeHeap()) + "\" max=\"327680\"></progress>";
+	s += "</section>";
+
 	s += "</body>\n</html>\n";
 
 	server.send(200, "text/html", s);

@@ -174,7 +174,7 @@ boolean loadContext() {
 		if (size == 0) {
 			DBG_PRINTLN(F("loadContext() - File empty"));
 		} else {
-			const int capacity = JSON_OBJECT_SIZE(3) + 4000;
+			const int capacity = JSON_OBJECT_SIZE(3) + 5000;
 			DynamicJsonDocument contextDoc(capacity);
 			DeserializationError err = deserializeJson(contextDoc, file);
 
