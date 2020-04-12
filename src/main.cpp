@@ -533,6 +533,7 @@ void setup()
 	// HTTP server - Set up required URL handlers on the web server.
 	server.on("/", HTTP_GET, handleRoot);
 	server.on("/config", HTTP_GET, [] { iotWebConf.handleConfig(); });
+	server.on("/config", HTTP_POST, [] { iotWebConf.handleConfig(); });
 	server.on("/upload", HTTP_GET, [] { handleMinimalUpload(); });
 	server.on("/api/startDevicelogin", HTTP_GET, [] { handleStartDevicelogin(); });
 	server.on("/api/settings", HTTP_GET, [] { handleGetSettings(); });
