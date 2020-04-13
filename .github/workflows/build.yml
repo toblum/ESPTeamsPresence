@@ -23,6 +23,6 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            .pio/build/d1_mini/firmware.bin
+            .pio/build/esp32doit-devkit-v1/firmware.bin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
