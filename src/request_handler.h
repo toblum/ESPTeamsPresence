@@ -85,10 +85,28 @@ void handleRoot() {
 	s += "<link href=\"https://fonts.googleapis.com/css?family=Press+Start+2P\" rel=\"stylesheet\">";
 	s += "<link href=\"https://unpkg.com/nes.css@2.3.0/css/nes.min.css\" rel=\"stylesheet\" />";
 	s += "<style type=\"text/css\">\n";
-	s += "body {padding:3.5rem}\n";
-	s += ".mt-s {margin-top:1.0rem}\n";
-	s += ".mt {margin-top:3.5rem}\n";
+	s += "  body {padding:3.5rem}\n";
+	s += "  .ml-s {margin-left:1.0rem}\n";
+	s += "  .mt-s {margin-top:1.0rem}\n";
+	s += "  .mt {margin-top:3.5rem}\n";
+	s += "  #dialog-devicelogin {max-width:800px}\n";
 	s += "</style>\n";
+	s += "<script>\n";
+	s += "function closeDeviceLoginModal() {\n";
+	s += "  document.getElementById('dialog-devicelogin').close();\n";
+	s += "}\n";
+	s += "function openDeviceLoginModal() {\n";
+	s += "  fetch('/api/startDevicelogin').then(r => r.json()).then(data => {\n";
+	s += "    console.log('startDevicelogin', data);\n";
+	s += "    if (data && data.user_code) {\n";
+	s += "      document.getElementById('btn_open').href = data.verification_uri;\n";
+	s += "      document.getElementById('lbl_message').innerText = data.message;\n";
+	s += "      document.getElementById('code_field').value = data.user_code;\n";
+	s += "    }\n";
+	s += "    document.getElementById('dialog-devicelogin').showModal();\n";
+	s += "  });\n";
+	s += "}\n";
+	s += "</script>\n";
 	s += "<title>ESP32 teams presence</title></head>\n";
 	s += "<body><h2>ESP32 teams presence</h2>";
 
@@ -98,15 +116,24 @@ void handleRoot() {
 	} else {
 		s += "<p class=\"note nes-text\">Device setup complete, but you can start the device login flow if you need to re-authenticate.</p>";
 	}
-	s += "</div><div><a class=\"nes-btn\" href=\"/api/startDevicelogin\">Start device login</a></div>";
-	s += "</section>";
+	s += "</div><div><button type=\"button\" class=\"nes-btn\" onclick=\"openDeviceLoginModal()\">Start device login</a></div>";
+	s += "<dialog class=\"nes-dialog is-rounded\" id=\"dialog-devicelogin\">\n";
+	s += "<p class=\"title\">Start device login</p>\n";
+	s += "<p id=\"lbl_message\"></p>\n";
+	s += "<input type=\"text\" id=\"code_field\" class=\"nes-input\" disabled>\n";
+	s += "<menu class=\"dialog-menu\">\n";
+	s += "<button id=\"btn_close\" class=\"nes-btn\" onclick=\"closeDeviceLoginModal()\">Close</button>\n";
+	s += "<a class=\"nes-btn is-primary ml-s\" id=\"btn_open\" href=\"https://microsoft.com/devicelogin\" target=\"_blank\">Open device login</a>\n";
+	s += "</menu>\n";
+	s += "</dialog>\n";
+	s += "</section>\n";
 
 	s += "<div class=\"nes-balloon from-left mt\">";
 	s += "Go to <a href=\"config\">configuration page</a> to change settings.";
 	s += "</div>";
 	s += "<section class=\"nes-container with-title\"><h3 class=\"title\">Current settings</h3>";
-	s += "<div class=\"nes-field mt-s\"><label for=\"name_field\">Client id</label><input type=\"text\" id=\"name_field\" class=\"nes-input\" disabled value=\"" + String(paramClientIdValue) +  "\"></div>";
-	s += "<div class=\"nes-field mt-s\"><label for=\"name_field\">Tenant host / id</label><input type=\"text\" id=\"name_field\" class=\"nes-input\" disabled value=\"" + String(paramTenantValue) +  "\"></div>";
+	s += "<div class=\"nes-field mt-s\"><label for=\"name_field\">Client-ID</label><input type=\"text\" id=\"name_field\" class=\"nes-input\" disabled value=\"" + String(paramClientIdValue) +  "\"></div>";
+	s += "<div class=\"nes-field mt-s\"><label for=\"name_field\">Tenant hostname / ID</label><input type=\"text\" id=\"name_field\" class=\"nes-input\" disabled value=\"" + String(paramTenantValue) +  "\"></div>";
 	s += "<div class=\"nes-field mt-s\"><label for=\"name_field\">Polling interval (sec)</label><input type=\"text\" id=\"name_field\" class=\"nes-input\" disabled value=\"" + String(paramPollIntervalValue) +  "\"></div>";
 	s += "<div class=\"nes-field mt-s\"><label for=\"name_field\">Number of LEDs</label><input type=\"text\" id=\"name_field\" class=\"nes-input\" disabled value=\"" + String(paramNumLedsValue) +  "\"></div>";
 	s += "</section>";
@@ -117,6 +144,8 @@ void handleRoot() {
 	s += "<div class=\"mt-s\">RAM: " + String(ESP.getFreeHeap()) + " of 327680 bytes free</div>";
 	s += "<progress class=\"nes-progress\" value=\"" + String(327680 - ESP.getFreeHeap()) + "\" max=\"327680\"></progress>";
 	s += "</section>";
+
+	s += "<div class=\"mt\"><i class=\"nes-icon github\"></i> Find the <a href=\"https://github.com/toblum/ESPTeamsPresence\" target=\"_blank\">ESPTeamsPresence</a> project on GitHub.</i></div>";
 
 	s += "</body>\n</html>\n";
 
