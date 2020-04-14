@@ -65,7 +65,7 @@ const char* rootCACertificate = \
 "-----END CERTIFICATE-----\n";
 
 // Global settings
-#define NUMLEDS 7  								// number of LEDs on the strip
+#define NUMLEDS 16  								// number of LEDs on the strip
 #define DATAPIN 12 								// GPIO pin used to drive the LED strip (20 == GPIO/D13)
 #define STATUS_PIN LED_BUILTIN					// User builtin LED for status
 #define DEFAULT_POLLING_PRESENCE_INTERVAL 15	// Default interval to poll for presence info (seconds)
@@ -95,8 +95,8 @@ char paramTenantValue[STRING_LEN];
 char paramPollIntervalValue[INTEGER_LEN];
 char paramNumLedsValue[INTEGER_LEN];
 IotWebConfSeparator separator = IotWebConfSeparator();
-IotWebConfParameter paramClientId = IotWebConfParameter("Client id", "clientId", paramClientIdValue, STRING_LEN, "text", "e.g. 12345678-1234-1234-1234-1234567890ab");
-IotWebConfParameter paramTenant = IotWebConfParameter("Tenant host / id", "tenantId", paramTenantValue, STRING_LEN, "text", "e.g. contoso.onmicrosoft.com");
+IotWebConfParameter paramClientId = IotWebConfParameter("Client-ID (Generic ID: 3837bbf0-30fb-47ad-bce8-f460ba9880c3)", "clientId", paramClientIdValue, STRING_LEN, "text", "e.g. 3837bbf0-30fb-47ad-bce8-f460ba9880c3");
+IotWebConfParameter paramTenant = IotWebConfParameter("Tenant hostname / ID", "tenantId", paramTenantValue, STRING_LEN, "text", "e.g. contoso.onmicrosoft.com");
 IotWebConfParameter paramPollInterval = IotWebConfParameter("Presence polling interval (sec)", "pollInterval", paramPollIntervalValue, INTEGER_LEN, "number", "10..300", (const char*)(DEFAULT_POLLING_PRESENCE_INTERVAL), "min='10' max='300' step='5'");
 IotWebConfParameter paramNumLeds = IotWebConfParameter("Number of LEDs", "numLeds", paramNumLedsValue, INTEGER_LEN, "number", "1..500", (const char*)(NUMLEDS), "min='1' max='500' step='1'");
 
@@ -378,6 +378,8 @@ boolean refreshToken() {
 		}
 
 		DBG_PRINTLN(F("refreshToken() - Success"));
+		DBG_PRINTLN(access_token);
+		DBG_PRINTLN(id_token);
 		state = SMODEPOLLPRESENCE;
 	} else {
 		DBG_PRINTLN(F("refreshToken() - Error:"));
