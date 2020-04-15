@@ -39,11 +39,9 @@ boolean requestJsonApi(JsonDocument& doc, String url, String payload = "", size_
 
 			// File found at server (HTTP 200, 301), or HTTP 400 with response payload
 			if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY || httpCode == HTTP_CODE_BAD_REQUEST) {
-				// DBG_PRINTLN(https.getString()); // Just for debug purposes, breaks further execution
-				Stream& responseStream = https.getStream();
-
 				// Parse JSON data
-				DeserializationError error = deserializeJson(doc, responseStream);
+				DeserializationError error = deserializeJson(doc, *client);
+				client->stop();
 				if (error) {
 					DBG_PRINT(F("deserializeJson() failed: "));
 					DBG_PRINTLN(error.c_str());
