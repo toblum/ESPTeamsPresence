@@ -42,6 +42,9 @@ boolean requestJsonApi(JsonDocument& doc, String url, String payload = "", size_
 				// Parse JSON data
 				DeserializationError error = deserializeJson(doc, *client);
 				client->stop();
+				delete client;
+				client = NULL;
+				
 				if (error) {
 					DBG_PRINT(F("deserializeJson() failed: "));
 					DBG_PRINTLN(error.c_str());
