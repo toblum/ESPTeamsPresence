@@ -378,8 +378,8 @@ boolean refreshToken() {
 		}
 
 		DBG_PRINTLN(F("refreshToken() - Success"));
-		DBG_PRINTLN(access_token);
-		DBG_PRINTLN(id_token);
+		// DBG_PRINTLN(access_token);
+		// DBG_PRINTLN(id_token);
 		state = SMODEPOLLPRESENCE;
 	} else {
 		DBG_PRINTLN(F("refreshToken() - Error:"));
