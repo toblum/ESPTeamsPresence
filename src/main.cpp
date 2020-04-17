@@ -1,32 +1,12 @@
 /**
- * IotWebConf01Minimal.ino -- IotWebConf is an ESP8266/ESP32
- *   non blocking WiFi/AP web configuration library for Arduino.
- *   https://github.com/prampec/IotWebConf 
+ * ESPTeamsPresence -- A standalone Microsoft Teams presence light 
+ *   based on ESP32 and RGB neopixel LEDs.
+ *   https://github.com/toblum/ESPTeamsPresence
  *
- * Copyright (C) 2018 Balazs Kelemen <prampec+arduino@gmail.com>
+ * Copyright (C) 2020 Tobias Blum <make@tobiasblum.de>
  *
  * This software may be modified and distributed under the terms
  * of the MIT license.  See the LICENSE file for details.
- */
-
-/**
- * Example: Minimal
- * Description:
- *   This example will shows the bare minimum required for IotWeConf to start up.
- *   After starting up the thing, please search for WiFi access points e.g. with
- *   your phone. Use password provided in the code!
- *   After connecting to the access point the root page will automatically appears.
- *   We call this "captive portal".
- *   
- *   Please set a new password for the Thing (for the access point) as well as
- *   the SSID and password of your local WiFi. You cannot move on without these steps.
- *   
- *   You have to leave the access point before to let the Thing continue operation
- *   with connecting to configured WiFi.
- *
- *   Note that you can find detailed debug information in the serial console depending
- *   on the settings IOTWEBCONF_DEBUG_TO_SERIAL, IOTWEBCONF_DEBUG_PWD_TO_SERIAL set
- *   in the IotWebConf.h .
  */
 
 #include <Arduino.h>
