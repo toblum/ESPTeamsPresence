@@ -127,8 +127,8 @@ String activity = "";
 #define SMODEDEVICELOGINFAILED 11    // Device login flow failed
 #define SMODEAUTHREADY 20            // Authentication successful
 #define SMODEPOLLPRESENCE 21         // Poll for presence
-#define SMODEREFRESHTOKEN 22          // Access token needs refresh
-#define SMODEPRESENCEREQUESTERROR 23       // Access token needs refresh
+#define SMODEREFRESHTOKEN 22         // Access token needs refresh
+#define SMODEPRESENCEREQUESTERROR 23 // Access token needs refresh
 uint8_t state = SMODEINITIAL;
 uint8_t laststate = SMODEINITIAL;
 static unsigned long tsPolling = 0;
@@ -286,7 +286,6 @@ void pollForToken() {
 	const size_t capacity = JSON_OBJECT_SIZE(7) + 4090; // Case 2: Successful (bigger size of both variants, so take that one as capacity)
 	DynamicJsonDocument responseDoc(capacity);
 	boolean res = requestJsonApi(responseDoc, "https://login.microsoftonline.com/" + String(paramTenantValue) + "/oauth2/v2.0/token", payload, capacity);
-	// DBG_PRINTLN(responseDoc.as<String>());
 
 	if (!res) {
 		state = SMODEDEVICELOGINFAILED;
@@ -378,8 +377,6 @@ boolean refreshToken() {
 		}
 
 		DBG_PRINTLN(F("refreshToken() - Success"));
-		// DBG_PRINTLN(access_token);
-		// DBG_PRINTLN(id_token);
 		state = SMODEPOLLPRESENCE;
 	} else {
 		DBG_PRINTLN(F("refreshToken() - Error:"));
