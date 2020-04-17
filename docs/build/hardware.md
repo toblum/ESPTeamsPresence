@@ -4,7 +4,7 @@ Hardware setup is extremely easy as the whole build consists of only two parts a
 
 See the following schematic for the wiring:
 
-![Schematic](../pics/Esp32TeamsPresence.png)
+![Schematic](https://github.com/toblum/ESPTeamsPresence/raw/master/docs/pics/Esp32TeamsPresence.png)
 
 You can solder the wires directly to the neopixel ring and the ESP dev board. Or you can use dupont wires to build a non-permanent solution.
 
