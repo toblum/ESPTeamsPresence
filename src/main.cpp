@@ -5,8 +5,9 @@
  *
  * Copyright (C) 2020 Tobias Blum <make@tobiasblum.de>
  *
- * This software may be modified and distributed under the terms
- * of the MIT license.  See the LICENSE file for details.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
 #include <Arduino.h>
