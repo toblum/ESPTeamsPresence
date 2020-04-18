@@ -17,3 +17,37 @@ The GPIO pins deliver only 3.3V and the neopixels need 5V, but this works in alm
 If you experience stability issues, you can put a 1000μF capacitor between 5V and ground to buffer voltage spikes.
 
 For more detailed infos and advanced setups with hunderds od LEDs see the [Neopixel Uberguide](https://learn.adafruit.com/adafruit-neopixel-uberguide).
+
+
+## Build instructions
+
+### Step 1: Wire neopixels
+
+![Neopixel connection](https://github.com/toblum/ESPTeamsPresence/raw/master/docs/pics/neopixel_connection.jpg)
+
+This depends on the type of neopixels you're using. The most flexible solution is to solder three duport wires to the neopixel board. 
+
+You need to solder three wires:
+- 5V / VCC / + (mostly red or white)
+- GND / Ground / - (usually black)
+- DATA IN / DI / IN (any other color)
+- DATA OUT / DO / OUT --> not used, only if you need to chain multiple boards
+
+
+### Step 2: Connect ESP32 and neopixels
+
+![Neopixel ESP32 connection](https://github.com/toblum/ESPTeamsPresence/raw/master/docs/pics/neopixel_esp32_connection.jpg)
+
+Connect ESP32 and neopixel according to the [schematic](https://github.com/toblum/ESPTeamsPresence/raw/master/docs/pics/Esp32TeamsPresence.png).
+
+
+### Step 3: Assemble in case
+
+![Assemble in case](https://github.com/toblum/ESPTeamsPresence/raw/master/docs/pics/hardware_glue.jpg)
+
+Assemble everything. Hot glue or blue tack helps a lot.
+
+
+### Step 4: Finished
+
+![Assemble in case](https://github.com/toblum/ESPTeamsPresence/raw/master/docs/pics/hardware_finished.jpg)
