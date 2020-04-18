@@ -47,7 +47,7 @@ const char* rootCACertificate = \
 
 // Global settings
 #define NUMLEDS 16  								// number of LEDs on the strip
-#define DATAPIN 12 								// GPIO pin used to drive the LED strip (20 == GPIO/D13)
+#define DATAPIN 13 								// GPIO pin used to drive the LED strip (20 == GPIO/D13)
 #define STATUS_PIN LED_BUILTIN					// User builtin LED for status
 #define DEFAULT_POLLING_PRESENCE_INTERVAL 15	// Default interval to poll for presence info (seconds)
 #define DEFAULT_ERROR_RETRY_INTERVAL 30			// Default interval to try again after errors
