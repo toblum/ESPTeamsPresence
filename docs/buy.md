@@ -45,6 +45,16 @@ Neopixel variants:
 ![Neopixel variants](https://github.com/toblum/ESPTeamsPresence/raw/master/docs/pics/neopixels.jpg)
 
 
+## Optional: Printed case
+
+You can package the parts in numerous ways and maybe you have the perfect case already lying around. If not, you can print a case if you have access to a 3D printer.
+
+The design can be found on thingyverse: https://www.thingiverse.com/thing:4296998
+This is a [existing design](https://www.thingiverse.com/thing:4060603) from [Plankto](https://www.thingiverse.com/Plankto/about), I modified it to fit the neopixel ring and a ESP32.
+
+![Neopixel variants](https://github.com/toblum/ESPTeamsPresence/raw/master/docs/pics/case_printanimation.gif)
+
+
 ## Cables
 
 You can solder the neopixels permanently to the board with three wires (not recommended), or you can use female dupont or jumper wires to make it more flexible. But it depends on the neopixels you're using. Some have already cables attached.
