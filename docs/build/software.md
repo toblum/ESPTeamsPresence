@@ -16,7 +16,7 @@ There are many options to flash software to the board. The [nodemcu-pyflasher](h
 
 ### Step 2: Flash firmware
 
-Plug the ESP32 board to you computer and wait for it to be detected.
+Plug the ESP32 board to your computer and wait for it to be detected.
 
 Use the following settings:  
 ![Flasher settings](https://github.com/toblum/ESPTeamsPresence/raw/master/docs/pics/flasher_software.png)
