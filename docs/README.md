@@ -9,3 +9,4 @@
 
 This projects implements the device login flow to authenticate against Microsoft Azure AD and to get a bearer token to call the Graph API to get presence informations for the current user. Everything is implemented in C++ code for Arduino-style microcontrollers and runs directly on the cheap and powerful wifi-connected ESP32 board. Hardware build and setup is extremely easy and consists only of two active parts and three wires and is powered via Micro-USB. It also features a cool retro-style web UI to configure the widget.
 
+<iframe width="560" height="315" src="https://www.youtube.com/embed/3qcatKaqbU4" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
