@@ -2,6 +2,9 @@
 
 After you flashed the software, you need to setup the device to connect to your WiFi and connect to your Office 365 environment.
 
+This video shows the build and setup process:  
+<iframe width="560" height="315" src="https://www.youtube.com/embed/DH3zN3nLk9w" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
 
 ## Step 1: Connect to device hotspot
 
