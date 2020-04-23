@@ -335,7 +335,7 @@ boolean refreshToken() {
 	String payload = "client_id=" + String(paramClientIdValue) + "&grant_type=refresh_token&refresh_token=" + refresh_token;
 	DBG_PRINTLN(F("refreshToken()"));
 
-	const size_t capacity = JSON_OBJECT_SIZE(7) + 4120;
+	const size_t capacity = JSON_OBJECT_SIZE(7) + 10000;
 	DynamicJsonDocument responseDoc(capacity);
 	boolean res = requestJsonApi(responseDoc, "https://login.microsoftonline.com/" + String(paramTenantValue) + "/oauth2/v2.0/token", payload, capacity);
 
