@@ -49,7 +49,7 @@ Neopixel variants:
 
 You can package the parts in numerous ways and maybe you have the perfect case already lying around. If not, you can print a case if you have access to a 3D printer.
 
-The design can be found on thingyverse: https://www.thingiverse.com/thing:4296998
+The design can be found on thingiverse: https://www.thingiverse.com/thing:4296998
 This is a [existing design](https://www.thingiverse.com/thing:4060603) from [Plankto](https://www.thingiverse.com/Plankto/about), I modified it to fit the neopixel ring and a ESP32.
 
 ![Neopixel variants](https://github.com/toblum/ESPTeamsPresence/raw/master/docs/pics/case_printanimation.gif)
@@ -63,4 +63,4 @@ You can get these really cheap:
 - https://www.amazon.de/Aukru-20cm-female-female-Steckbr%C3%BCcken-Drahtbr%C3%BCcken/dp/B00OL6JZ3C
 - https://de.aliexpress.com/item/32987024879.html
 
-And you need a simple Micro-USB cable to flash the ESP32 and power it later. You definitely have one lying around somewhere. 
+And you also need a simple Micro-USB cable to flash the ESP32 and power it later. You definitely have one lying around somewhere. 

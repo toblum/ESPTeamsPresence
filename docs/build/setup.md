@@ -35,11 +35,11 @@ The configuration UI of the device should open nowt that looks like this:
   The number of seconde the device will open the local hotspot when powering up before it connects to your home WiFi. Set this to a low value, e.g. 5 seconds.
 
 - Client-ID:  
-  Client-ID of the Azure App that is used to connect to Teams. You can use the Generic-ID 3837bbf0-30fb-47ad-bce8-f460ba9880c3 or setup your own Azure App. The Generic-ID should work fine in most cases as it's a multi-tenant app I supply.
+  Client-ID of the Azure App that is used to connect to Teams. You can use the Generic-ID 3837bbf0-30fb-47ad-bce8-f460ba9880c3 or setup your own Azure App. The Generic-ID should work fine in most cases. It's a multi-tenant app I registered that you can use instead registering your own Azure app (what's also possible).
 - Tenant hostname / ID:  
   Hostname of your tenant, e.g. contoso.onmicrosoft.com. You can also use the tenant GUID.
 - Presence polling interval (sec):  
-  Intervall to poll for new presence information. Don't set this too low, you may stress the Azure infrastructure too much, if you set it too low, and get throttled. 90 seconds or more may be a good value.
+  Intervall to poll for new presence information. Don't set this too low, you may stress the Azure infrastructure too much, and get throttled. 90 seconds or more may be a good value.
 - Number of LEDs:  
   The number of LEDs in neopixel ring / strip.
 
@@ -86,9 +86,8 @@ After login is completed you should may see this dialog:
 
 It asks you to consent that the Azure App, that the presence device uses in the background, is allowed to access your profile and presence data (and nothing else).
 
-If you have some admin role in Azure AD you maybe see the "Consent in the name of your organization" checkbox. If you tick this, other users in your tenant don't need to consent on their own.
+If you have some admin role in Azure AD you may see the "Consent in the name of your organization" checkbox. If you tick this, other users in your tenant don't need to consent on their own.
 
-Click "Accept" and you should be done. The access tokens (only the tokens, no personal credentials) are now stored on the device. The token is refreshed automatically if needed in the future.
+Click "Accept" and you should be done. The access tokens (only the tokens, no personal credentials) are now stored on the device. The token is refreshed automatically, if needed, in the future.
 
 The presence device should now get presence information and light up in the color of your presence.
-
