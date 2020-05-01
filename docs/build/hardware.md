@@ -25,13 +25,13 @@ For this setup the DATA line should be connected to GPIO 12 (labeled as D12 on t
 
 ![Neopixel connection](https://github.com/toblum/ESPTeamsPresence/raw/master/docs/pics/neopixel_connection.jpg)
 
-This depends on the type of neopixels you're using. The most flexible solution is to solder three duport wires to the neopixel board. 
+This depends on the type of neopixels you're using. The most flexible solution is to solder three dupont wires to the neopixel board. 
 
 You need to solder three wires:
 - 5V / VCC / + (mostly red or white)
 - GND / Ground / - (usually black)
 - DATA IN / DI / IN (any other color)
-- DATA OUT / DO / OUT --> not used, only if you need to chain multiple boards
+- DATA OUT / DO / OUT --> not used, only if you need to chain multiple neopixel strips
 
 
 ### Step 2: Connect ESP32 and neopixels
@@ -45,7 +45,7 @@ Connect ESP32 and neopixel according to the [schematic](https://github.com/toblu
 
 ![Assemble in case](https://github.com/toblum/ESPTeamsPresence/raw/master/docs/pics/hardware_glue.jpg)
 
-Assemble everything. Hot glue or blue tack helps a lot.
+Assemble everything. Hot glue or blue tack helps a lot. :-)
 
 
 ### Step 4: Finished
