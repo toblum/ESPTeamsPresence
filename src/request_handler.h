@@ -121,7 +121,7 @@ void handleRoot() {
 	s += "}\n";
 	s += "</script>\n";
 	s += "<title>ESP32 teams presence</title></head>\n";
-	s += "<body><h2>ESP32 teams presence</h2>";
+	s += "<body><h2>ESP32 teams presence - v" + String(VERSION) + "</h2>";
 
 	s += "<section class=\"mt\"><div class=\"nes-balloon from-left\">";
 	if (access_token == "") {
@@ -168,7 +168,7 @@ void handleRoot() {
 void handleGetSettings() {
 	DBG_PRINTLN("handleGetSettings()");
 	
-	const int capacity = JSON_OBJECT_SIZE(12);
+	const int capacity = JSON_OBJECT_SIZE(13);
 	StaticJsonDocument<capacity> responseDoc;
 	responseDoc["client_id"].set(paramClientIdValue);
 	responseDoc["tenant"].set(paramTenantValue);
@@ -183,6 +183,8 @@ void handleGetSettings() {
     responseDoc["flash_chip_speed"].set(ESP.getFlashChipSpeed());
     responseDoc["sdk_version"].set(ESP.getSdkVersion());
     responseDoc["cpu_freq"].set(ESP.getCpuFreqMHz());
+
+    responseDoc["sketch_version"].set(VERSION);
 
 	server.send(200, "application/json", responseDoc.as<String>());
 }

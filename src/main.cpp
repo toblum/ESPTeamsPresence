@@ -47,13 +47,14 @@ const char* rootCACertificate = \
 "-----END CERTIFICATE-----\n";
 
 // Global settings
-#define NUMLEDS 16  								// number of LEDs on the strip
+#define NUMLEDS 16  							// number of LEDs on the strip
 #define DATAPIN 13 								// GPIO pin used to drive the LED strip (20 == GPIO/D13)
 #define STATUS_PIN LED_BUILTIN					// User builtin LED for status
 #define DEFAULT_POLLING_PRESENCE_INTERVAL 15	// Default interval to poll for presence info (seconds)
 #define DEFAULT_ERROR_RETRY_INTERVAL 30			// Default interval to try again after errors
 #define TOKEN_REFRESH_TIMEOUT 60	 			// Number of seconds until expiration before token gets refreshed
-#define CONTEXT_FILE "/context.json"				// Filename of the context file
+#define CONTEXT_FILE "/context.json"			// Filename of the context file
+#define VERSION "0.10.0"						// Version of the software
 
 #define DBG_PRINT(x) Serial.print(x)
 #define DBG_PRINTLN(x) Serial.println(x)
@@ -88,6 +89,9 @@ WiFiClientSecure client;
 // WS2812FX
 WS2812FX ws2812fx = WS2812FX(NUMLEDS, DATAPIN, NEO_GRB + NEO_KHZ800);
 
+// OTA update
+HTTPUpdateServer httpUpdater;
+
 // Global variables
 String user_code = "";
 String device_code = "";
@@ -118,7 +122,6 @@ uint8_t retries = 0;
 
 // Multicore
 TaskHandle_t TaskNeopixel; 
-
 
 
 /**
@@ -184,7 +187,7 @@ boolean loadContext() {
 				} else {
 					Serial.printf("loadContext() - ERROR Number of valid settings in file: %d, should be 3.\n", numSettings);
 				}
-				DBG_PRINTLN(contextDoc.as<String>());
+				// DBG_PRINTLN(contextDoc.as<String>());
 			}
 		}
 		file.close();
@@ -485,11 +488,11 @@ void neopixelTask(void * parameter) {
 }
 
 void customShow(void) {
-  uint8_t *pixels = ws2812fx.getPixels();
-  // numBytes is one more then the size of the ws2812fx's *pixels array.
-  // the extra byte is used by the driver to insert the LED reset pulse at the end.
-  uint16_t numBytes = ws2812fx.getNumBytes() + 1;
-  rmt_write_sample(RMT_CHANNEL_0, pixels, numBytes, false); // channel 0
+	uint8_t *pixels = ws2812fx.getPixels();
+	// numBytes is one more then the size of the ws2812fx's *pixels array.
+	// the extra byte is used by the driver to insert the LED reset pulse at the end.
+	uint16_t numBytes = ws2812fx.getNumBytes() + 1;
+	rmt_write_sample(RMT_CHANNEL_0, pixels, numBytes, false); // channel 0
 }
 
 
@@ -521,6 +524,7 @@ void setup()
 	iotWebConf.getApTimeoutParameter()->visible = true;
 	iotWebConf.setWifiConnectionCallback(&onWifiConnected);
 	iotWebConf.setConfigSavedCallback(&onConfigSaved);
+	iotWebConf.setupUpdateServer(&httpUpdater);
 	state = SMODEWIFICONNECTING;
 	iotWebConf.init();
 
