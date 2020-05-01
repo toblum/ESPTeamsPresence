@@ -14,6 +14,7 @@
 #include <IotWebConf.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
+#include <ESPmDNS.h>
 #include <ArduinoJson.h>
 #include <WS2812FX.h>
 #include "FS.h"
@@ -155,7 +156,7 @@ boolean loadContext() {
 		if (size == 0) {
 			DBG_PRINTLN(F("loadContext() - File empty"));
 		} else {
-			const int capacity = JSON_OBJECT_SIZE(3) + 5000;
+			const int capacity = JSON_OBJECT_SIZE(3) + 10000;
 			DynamicJsonDocument contextDoc(capacity);
 			DeserializationError err = deserializeJson(contextDoc, file);
 
@@ -183,13 +184,29 @@ boolean loadContext() {
 				} else {
 					Serial.printf("loadContext() - ERROR Number of valid settings in file: %d, should be 3.\n", numSettings);
 				}
-				// DBG_PRINTLN(contextDoc.as<String>());
+				DBG_PRINTLN(contextDoc.as<String>());
 			}
 		}
 		file.close();
 	}
 
 	return success;
+}
+
+void startMDNS() {
+	DBG_PRINTLN("startMDNS()");
+	// Set up mDNS responder
+    if (!MDNS.begin(thingName)) {
+        DBG_PRINTLN("Error setting up MDNS responder!");
+        while(1) {
+            delay(1000);
+        }
+    }
+	// MDNS.addService("http", "tcp", 80);
+
+    DBG_PRINT("mDNS responder started: ");
+    DBG_PRINT(thingName);
+    DBG_PRINTLN(".local");
 }
 
 
@@ -378,6 +395,7 @@ void statemachine() {
 	if (state == SMODEWIFICONNECTED && laststate != SMODEWIFICONNECTED)
 	{
 		setAnimation(0, FX_MODE_THEATER_CHASE, GREEN);
+		startMDNS();
 		loadContext();
 		// WiFi client
 		DBG_PRINTLN(F("Wifi connected, waiting for requests ..."));

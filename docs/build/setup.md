@@ -22,7 +22,9 @@ The configuration UI of the device should open nowt that looks like this:
 
 
 - Thing name:  
-  Name of the device, also used as the name for the hotspot. Change this if you're using more than one device.
+  Name of the device and used as the name for the hotspot.  
+  This name is also used as the hostname of the device. If the name is e.g. ESPTeamsPresence, you should be able to open the web interface via http://ESPTeamsPresence.local  
+  Change this if you're using more than one device. 
 - AP password:  
   Password for the device hotspot and the configuration UI. Default is "presence", change it as you like.
 - WiFi SSID:  
@@ -44,7 +46,10 @@ The configuration UI of the device should open nowt that looks like this:
 Click "Apply" to save everything.
 
 
-## Step 3: Get IP of the device in your home network
+## Step 3: Get IP / hostname of the device in your home network
+
+Usually you should be able to reach the device via it's thingname you set up in the last step: http://\<thingname>.local/ --> e.g. http://espteamspresence.local/.  
+This should work in most environments, but if not, you can reach it via it's IP address.
 
 Power cycle the presence device once and wait some time. The LEDs should now:
 - Glow white when the device is powered on
