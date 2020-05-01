@@ -152,8 +152,8 @@ void handleRoot() {
 	s += "</section>";
 
 	s += "<section class=\"nes-container with-title mt\"><h3 class=\"title\">Memory usage</h3>";
-	s += "<div>Sketch: " + String(ESP.getSketchSize()) + " of " + String(ESP.getFreeSketchSpace()) + " bytes free</div>";
-	s += "<progress class=\"nes-progress\" value=\"" + String(ESP.getFreeSketchSpace() - ESP.getSketchSize()) + "\" max=\"" + String(ESP.getFreeSketchSpace()) + "\"></progress>";
+	s += "<div>Sketch: " + String(ESP.getFreeSketchSpace() - ESP.getSketchSize()) + " of " + String(ESP.getFreeSketchSpace()) + " bytes free</div>";
+	s += "<progress class=\"nes-progress\" value=\"" + String(ESP.getSketchSize()) + "\" max=\"" + String(ESP.getFreeSketchSpace()) + "\"></progress>";
 	s += "<div class=\"mt-s\">RAM: " + String(ESP.getFreeHeap()) + " of 327680 bytes free</div>";
 	s += "<progress class=\"nes-progress\" value=\"" + String(327680 - ESP.getFreeHeap()) + "\" max=\"327680\"></progress>";
 	s += "</section>";
