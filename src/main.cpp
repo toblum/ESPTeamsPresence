@@ -50,7 +50,7 @@ const char* rootCACertificate = \
 #define NUMLEDS 16  							// number of LEDs on the strip
 #define DATAPIN 13 								// GPIO pin used to drive the LED strip (20 == GPIO/D13)
 #define STATUS_PIN LED_BUILTIN					// User builtin LED for status
-#define DEFAULT_POLLING_PRESENCE_INTERVAL 15	// Default interval to poll for presence info (seconds)
+#define DEFAULT_POLLING_PRESENCE_INTERVAL "30"	// Default interval to poll for presence info (seconds)
 #define DEFAULT_ERROR_RETRY_INTERVAL 30			// Default interval to try again after errors
 #define TOKEN_REFRESH_TIMEOUT 60	 			// Number of seconds until expiration before token gets refreshed
 #define CONTEXT_FILE "/context.json"			// Filename of the context file
@@ -78,10 +78,10 @@ char paramTenantValue[STRING_LEN];
 char paramPollIntervalValue[INTEGER_LEN];
 char paramNumLedsValue[INTEGER_LEN];
 IotWebConfSeparator separator = IotWebConfSeparator();
-IotWebConfParameter paramClientId = IotWebConfParameter("Client-ID (Generic ID: 3837bbf0-30fb-47ad-bce8-f460ba9880c3)", "clientId", paramClientIdValue, STRING_LEN, "text", "e.g. 3837bbf0-30fb-47ad-bce8-f460ba9880c3");
+IotWebConfParameter paramClientId = IotWebConfParameter("Client-ID (Generic ID: 3837bbf0-30fb-47ad-bce8-f460ba9880c3)", "clientId", paramClientIdValue, STRING_LEN, "text", "e.g. 3837bbf0-30fb-47ad-bce8-f460ba9880c3", "3837bbf0-30fb-47ad-bce8-f460ba9880c3");
 IotWebConfParameter paramTenant = IotWebConfParameter("Tenant hostname / ID", "tenantId", paramTenantValue, STRING_LEN, "text", "e.g. contoso.onmicrosoft.com");
-IotWebConfParameter paramPollInterval = IotWebConfParameter("Presence polling interval (sec)", "pollInterval", paramPollIntervalValue, INTEGER_LEN, "number", "10..300", (const char*)(DEFAULT_POLLING_PRESENCE_INTERVAL), "min='10' max='300' step='5'");
-IotWebConfParameter paramNumLeds = IotWebConfParameter("Number of LEDs", "numLeds", paramNumLedsValue, INTEGER_LEN, "number", "1..500", (const char*)(NUMLEDS), "min='1' max='500' step='1'");
+IotWebConfParameter paramPollInterval = IotWebConfParameter("Presence polling interval (sec) (default: 30)", "pollInterval", paramPollIntervalValue, INTEGER_LEN, "number", "10..300", DEFAULT_POLLING_PRESENCE_INTERVAL, "min='10' max='300' step='5'");
+IotWebConfParameter paramNumLeds = IotWebConfParameter("Number of LEDs (default: 16)", "numLeds", paramNumLedsValue, INTEGER_LEN, "number", "1..500", "16", "min='1' max='500' step='1'");
 
 // HTTP client
 WiFiClientSecure client;
@@ -520,8 +520,9 @@ void setup()
 	iotWebConf.addParameter(&paramTenant);
 	iotWebConf.addParameter(&paramPollInterval);
 	iotWebConf.addParameter(&paramNumLeds);
-	iotWebConf.setFormValidator(&formValidator);
+	// iotWebConf.setFormValidator(&formValidator);
 	iotWebConf.getApTimeoutParameter()->visible = true;
+	iotWebConf.getApTimeoutParameter()->defaultValue = "10";
 	iotWebConf.setWifiConnectionCallback(&onWifiConnected);
 	iotWebConf.setConfigSavedCallback(&onConfigSaved);
 	iotWebConf.setupUpdateServer(&httpUpdater);
@@ -529,7 +530,12 @@ void setup()
 	iotWebConf.init();
 
 	// WS2812FX
-	ws2812fx.setLength(atoi(paramNumLedsValue));
+	int numberLeds = atoi(paramNumLedsValue);
+	if (numberLeds < 1) {
+		DBG_PRINTLN(F("Number of LEDs not given, using 16."));
+		numberLeds = 16;
+	}
+	ws2812fx.setLength(numberLeds);
 	ws2812fx.setCustomShow(customShow);
 
 	// HTTP server - Set up required URL handlers on the web server.
@@ -545,7 +551,9 @@ void setup()
 		server.send(200, "text/plain", "");
 	}, handleFileUpload);
 
+	// server.onNotFound([](){ iotWebConf.handleNotFound(); });
 	server.onNotFound([]() {
+		iotWebConf.handleNotFound();
 		if (!handleFileRead(server.uri())) {
 			server.send(404, "text/plain", "FileNotFound");
 		}
