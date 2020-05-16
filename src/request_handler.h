@@ -131,12 +131,16 @@ void handleRoot() {
 	s += "<body><h2>ESP32 teams presence - v" + String(VERSION) + "</h2>";
 
 	s += "<section class=\"mt\"><div class=\"nes-balloon from-left\">";
-	if (access_token == "") {
-		s += "<p class=\"note nes-text is-error\">No authentication infos found, start device login flow to complete widget setup!</p>";
+	if (strlen(paramTenantValue) == 0 || strlen(paramClientIdValue) == 0) {
+		s += "<p class=\"note nes-text is-error\">Some settings are missing. Go to <a href=\"config\">configuration page</a> to complete setup.</p></div>";
 	} else {
-		s += "<p class=\"note nes-text\">Device setup complete, but you can start the device login flow if you need to re-authenticate.</p>";
+		if (access_token == "") {
+			s += "<p class=\"note nes-text is-error\">No authentication infos found, start device login flow to complete widget setup!</p></div>";
+		} else {
+			s += "<p class=\"note nes-text\">Device setup complete, but you can start the device login flow if you need to re-authenticate.</p></div>";
+		}
+		s += "<div><button type=\"button\" class=\"nes-btn\" onclick=\"openDeviceLoginModal()\">Start device login</button></div>";
 	}
-	s += "</div><div><button type=\"button\" class=\"nes-btn\" onclick=\"openDeviceLoginModal()\">Start device login</button></div>";
 	s += "<dialog class=\"nes-dialog is-rounded\" id=\"dialog-devicelogin\">\n";
 	s += "<p class=\"title\">Start device login</p>\n";
 	s += "<p id=\"lbl_message\"></p>\n";
