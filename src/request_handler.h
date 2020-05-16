@@ -108,6 +108,13 @@ void handleRoot() {
 	s += "function closeDeviceLoginModal() {\n";
 	s += "  document.getElementById('dialog-devicelogin').close();\n";
 	s += "}\n";
+	s += "function performClearSettings() {\n";
+	s += "  fetch('/api/clearSettings').then(r => r.json()).then(data => {\n";
+	s += "    console.log('clearSettings', data);\n";
+	s += "    document.getElementById('dialog-clearsettings').close();\n";
+	s += "    document.getElementById('dialog-clearsettings-result').showModal();\n";
+	s += "  });\n";
+	s += "}\n";
 	s += "function openDeviceLoginModal() {\n";
 	s += "  fetch('/api/startDevicelogin').then(r => r.json()).then(data => {\n";
 	s += "    console.log('startDevicelogin', data);\n";
@@ -129,7 +136,7 @@ void handleRoot() {
 	} else {
 		s += "<p class=\"note nes-text\">Device setup complete, but you can start the device login flow if you need to re-authenticate.</p>";
 	}
-	s += "</div><div><button type=\"button\" class=\"nes-btn\" onclick=\"openDeviceLoginModal()\">Start device login</a></div>";
+	s += "</div><div><button type=\"button\" class=\"nes-btn\" onclick=\"openDeviceLoginModal()\">Start device login</button></div>";
 	s += "<dialog class=\"nes-dialog is-rounded\" id=\"dialog-devicelogin\">\n";
 	s += "<p class=\"title\">Start device login</p>\n";
 	s += "<p id=\"lbl_message\"></p>\n";
@@ -156,6 +163,18 @@ void handleRoot() {
 	s += "<progress class=\"nes-progress\" value=\"" + String(ESP.getSketchSize()) + "\" max=\"" + String(ESP.getFreeSketchSpace()) + "\"></progress>";
 	s += "<div class=\"mt-s\">RAM: " + String(ESP.getFreeHeap()) + " of 327680 bytes free</div>";
 	s += "<progress class=\"nes-progress\" value=\"" + String(327680 - ESP.getFreeHeap()) + "\" max=\"327680\"></progress>";
+	s += "</section>";
+
+	s += "<section class=\"nes-container with-title mt\"><h3 class=\"title\">Danger area</h3>";
+	s += "<dialog class=\"nes-dialog is-rounded\" id=\"dialog-clearsettings\">\n";
+	s += "<p class=\"title\">Really clear all settings?</p>\n";
+	s += "<button class=\"nes-btn\" onclick=\"document.getElementById('dialog-clearsettings').close()\">Close</button>\n";
+	s += "<button class=\"nes-btn\" onclick=\"performClearSettings()\">OK</button>\n";
+	s += "</dialog>\n";
+	s += "<dialog class=\"nes-dialog is-rounded\" id=\"dialog-clearsettings-result\">\n";
+	s += "<p class=\"title\">All settings were cleared.</p>\n";
+	s += "</dialog>\n";
+	s += "<div><button type=\"button\" class=\"nes-btn is-error\" onclick=\"document.getElementById('dialog-clearsettings').showModal();\">Clear all settings</button></div>";
 	s += "</section>";
 
 	s += "<div class=\"mt\"><i class=\"nes-icon github\"></i> Find the <a href=\"https://github.com/toblum/ESPTeamsPresence\" target=\"_blank\">ESPTeamsPresence</a> project on GitHub.</i></div>";
@@ -201,6 +220,7 @@ void handleClearSettings() {
 	removeContext();
 
 	server.send(200, "application/json", F("{\"action\": \"clear_settings\", \"error\": false}"));
+	ESP.restart();
 }
 
 boolean formValidator() {
