@@ -59,6 +59,7 @@ const char* rootCACertificate = \
 #define DBG_PRINT(x) Serial.print(x)
 #define DBG_PRINTLN(x) Serial.println(x)
 
+
 // IotWebConf
 // -- Initial name of the Thing. Used e.g. as SSID of the own Access Point.
 const char thingName[] = "ESPTeamsPresence";
@@ -82,12 +83,14 @@ IotWebConfParameter paramClientId = IotWebConfParameter("Client-ID (Generic ID: 
 IotWebConfParameter paramTenant = IotWebConfParameter("Tenant hostname / ID", "tenantId", paramTenantValue, STRING_LEN, "text", "e.g. contoso.onmicrosoft.com");
 IotWebConfParameter paramPollInterval = IotWebConfParameter("Presence polling interval (sec) (default: 30)", "pollInterval", paramPollIntervalValue, INTEGER_LEN, "number", "10..300", DEFAULT_POLLING_PRESENCE_INTERVAL, "min='10' max='300' step='5'");
 IotWebConfParameter paramNumLeds = IotWebConfParameter("Number of LEDs (default: 16)", "numLeds", paramNumLedsValue, INTEGER_LEN, "number", "1..500", "16", "min='1' max='500' step='1'");
+byte lastIotWebConfState;
 
 // HTTP client
 WiFiClientSecure client;
 
 // WS2812FX
 WS2812FX ws2812fx = WS2812FX(NUMLEDS, DATAPIN, NEO_GRB + NEO_KHZ800);
+int numberLeds;
 
 // OTA update
 HTTPUpdateServer httpUpdater;
@@ -224,7 +227,7 @@ void setAnimation(uint8_t segment, uint8_t mode = FX_MODE_STATIC, uint32_t color
 	// Support only one segment for the moment
 	if (segment == 0) {
 		startLed = 0;
-		endLed = atoi(paramNumLedsValue);
+		endLed = numberLeds;
 	}
 	Serial.printf("setAnimation: %d, %d-%d, Mode: %d, Color: %d, Speed: %d\n", segment, startLed, endLed, mode, color, speed);
 	ws2812fx.setSegment(segment, startLed, endLed, mode, color, speed, reverse);
@@ -389,6 +392,21 @@ boolean refreshToken() {
 
 // Implementation of a statemachine to handle the different application states
 void statemachine() {
+
+	// Statemachine: Check states of iotWebConf to detect AP mode and WiFi Connection attepmt
+	byte iotWebConfState = iotWebConf.getState();
+	if (iotWebConfState != lastIotWebConfState) {
+		if (iotWebConfState == IOTWEBCONF_STATE_NOT_CONFIGURED || iotWebConfState == IOTWEBCONF_STATE_AP_MODE) {
+			DBG_PRINTLN(F("Detected AP mode"));
+			setAnimation(0, FX_MODE_THEATER_CHASE, WHITE);
+		}
+		if (iotWebConfState == IOTWEBCONF_STATE_CONNECTING) {
+			DBG_PRINTLN(F("WiFi connecting"));
+			state = SMODEWIFICONNECTING;
+		}
+	}
+	lastIotWebConfState = iotWebConfState;
+
 	// Statemachine: Wifi connection start
 	if (state == SMODEWIFICONNECTING && laststate != SMODEWIFICONNECTING) {
 		setAnimation(0, FX_MODE_THEATER_CHASE, BLUE);
@@ -484,6 +502,7 @@ void statemachine() {
 void neopixelTask(void * parameter) {
 	for (;;) {
 		ws2812fx.service();
+		vTaskDelay(10);
 	}
 }
 
@@ -521,19 +540,19 @@ void setup()
 	iotWebConf.addParameter(&paramPollInterval);
 	iotWebConf.addParameter(&paramNumLeds);
 	// iotWebConf.setFormValidator(&formValidator);
-	iotWebConf.getApTimeoutParameter()->visible = true;
-	iotWebConf.getApTimeoutParameter()->defaultValue = "10";
+	// iotWebConf.getApTimeoutParameter()->visible = true;
+	// iotWebConf.getApTimeoutParameter()->defaultValue = "10";
 	iotWebConf.setWifiConnectionCallback(&onWifiConnected);
 	iotWebConf.setConfigSavedCallback(&onConfigSaved);
 	iotWebConf.setupUpdateServer(&httpUpdater);
-	state = SMODEWIFICONNECTING;
+	iotWebConf.skipApStartup();
 	iotWebConf.init();
 
 	// WS2812FX
-	int numberLeds = atoi(paramNumLedsValue);
+	numberLeds = atoi(paramNumLedsValue);
 	if (numberLeds < 1) {
 		DBG_PRINTLN(F("Number of LEDs not given, using 16."));
-		numberLeds = 16;
+		numberLeds = NUMLEDS;
 	}
 	ws2812fx.setLength(numberLeds);
 	ws2812fx.setCustomShow(customShow);
