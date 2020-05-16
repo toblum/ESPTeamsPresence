@@ -17,6 +17,7 @@
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
 #include <WS2812FX.h>
+#include <EEPROM.h>
 #include "FS.h"
 #include "SPIFFS.h"
 #include "ESP32_RMT_Driver.h"
@@ -184,9 +185,11 @@ boolean loadContext() {
 					numSettings++;
 				}
 				if (numSettings == 3) {
-					state = SMODEREFRESHTOKEN;
 					success = true;
 					DBG_PRINTLN(F("loadContext() - Success"));
+					if (strlen(paramClientIdValue) == 0 && strlen(paramTenantValue) == 0) {
+						state = SMODEREFRESHTOKEN;
+					}
 				} else {
 					Serial.printf("loadContext() - ERROR Number of valid settings in file: %d, should be 3.\n", numSettings);
 				}
@@ -197,6 +200,12 @@ boolean loadContext() {
 	}
 
 	return success;
+}
+
+// Remove context information file in SPIFFS
+void removeContext() {
+	SPIFFS.remove(CONTEXT_FILE);
+	DBG_PRINTLN(F("removeContext() - Success"));
 }
 
 void startMDNS() {
@@ -564,6 +573,7 @@ void setup()
 	server.on("/upload", HTTP_GET, [] { handleMinimalUpload(); });
 	server.on("/api/startDevicelogin", HTTP_GET, [] { handleStartDevicelogin(); });
 	server.on("/api/settings", HTTP_GET, [] { handleGetSettings(); });
+	server.on("/api/clearSettings", HTTP_GET, [] { handleClearSettings(); });
 	server.on("/fs/delete", HTTP_DELETE, handleFileDelete);
 	server.on("/fs/list", HTTP_GET, handleFileList);
 	server.on("/fs/upload", HTTP_POST, []() {

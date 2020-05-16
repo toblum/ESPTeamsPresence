@@ -189,6 +189,20 @@ void handleGetSettings() {
 	server.send(200, "application/json", responseDoc.as<String>());
 }
 
+// Delete EEPROM by removing the trailing sequence, remove context file
+void handleClearSettings() {
+	DBG_PRINTLN("handleClearSettings()");
+
+	for (int t = 0; t < 4; t++)
+	{
+		EEPROM.write(t, 0);
+	}
+	EEPROM.commit();
+	removeContext();
+
+	server.send(200, "application/json", F("{\"action\": \"clear_settings\", \"error\": false}"));
+}
+
 boolean formValidator() {
 	DBG_PRINTLN(F("Validating form."));
 	boolean valid = true;
