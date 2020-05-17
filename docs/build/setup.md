@@ -89,6 +89,6 @@ It asks you to consent that the Azure App, that the presence device uses in the 
 
 If you have some admin role in Azure AD you may see the "Consent in the name of your organization" checkbox. If you tick this, other users in your tenant don't need to consent on their own.
 
-Click "Accept" and you should be done. The access tokens (only the tokens, no personal credentials) are now stored on the device. The token is refreshed automatically, if needed, in the future. Everything the token is refreshed, the device shows a running red animation for a short time.
+Click "Accept" and you should be done. The access tokens (only the tokens, no personal credentials) are now stored on the device. The token is refreshed automatically, if needed, in the future. Everytime the token is refreshed, the device shows a running red animation for a short time.
 
 The presence device should now receive presence information and light up in the color of your presence.
