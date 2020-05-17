@@ -173,7 +173,7 @@ void handleRoot() {
 	s += "<dialog class=\"nes-dialog is-rounded\" id=\"dialog-clearsettings\">\n";
 	s += "<p class=\"title\">Really clear all settings?</p>\n";
 	s += "<button class=\"nes-btn\" onclick=\"document.getElementById('dialog-clearsettings').close()\">Close</button>\n";
-	s += "<button class=\"nes-btn\" onclick=\"performClearSettings()\">OK</button>\n";
+	s += "<button class=\"nes-btn is-error\" onclick=\"performClearSettings()\">Clear all settings</button>\n";
 	s += "</dialog>\n";
 	s += "<dialog class=\"nes-dialog is-rounded\" id=\"dialog-clearsettings-result\">\n";
 	s += "<p class=\"title\">All settings were cleared.</p>\n";
