@@ -187,8 +187,11 @@ boolean loadContext() {
 				if (numSettings == 3) {
 					success = true;
 					DBG_PRINTLN(F("loadContext() - Success"));
-					if (strlen(paramClientIdValue) == 0 && strlen(paramTenantValue) == 0) {
+					if (strlen(paramClientIdValue) > 0 && strlen(paramTenantValue) > 0) {
+						DBG_PRINTLN(F("loadContext() - Next: Refresh token."));
 						state = SMODEREFRESHTOKEN;
+					} else {
+						DBG_PRINTLN(F("loadContext() - No client id or tenant setting found."));
 					}
 				} else {
 					Serial.printf("loadContext() - ERROR Number of valid settings in file: %d, should be 3.\n", numSettings);
@@ -493,8 +496,9 @@ void statemachine() {
 		if (retries >= 5) {
 			// Try token refresh
 			state = SMODEREFRESHTOKEN;
+		} else {
+			state = SMODEPOLLPRESENCE;
 		}
-		state = SMODEPOLLPRESENCE;
 	}
 
 	// Update laststate
