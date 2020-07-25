@@ -265,7 +265,7 @@ boolean formValidator() {
 // Config was saved
 void onConfigSaved() {
 	DBG_PRINTLN(F("Configuration was updated."));
-	ws2812fx.setLength(atoi(paramNumLedsValue));
+	onVisualizationConfigChanged(atoi(paramNumLedsValue));
 }
 
 // Requests to /startDevicelogin

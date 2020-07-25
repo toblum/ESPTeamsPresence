@@ -135,6 +135,11 @@ void setStatusAnimation(String status)
 	}
 }
 
+// Visualization configuration was changed
+void onVisualizationConfigChanged(int numLeds) {
+	ws2812fx.setLength(numLeds);
+}
+
 // Initialize visualization module (called in setup())
 void initVisualization(int numberLeds)
 {
