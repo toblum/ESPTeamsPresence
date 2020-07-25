@@ -501,8 +501,8 @@ void setup()
 	// Serial.setDebugOutput(true);
 
 	// iotWebConf - Initializing the configuration.
-	#ifdef STATUS_PIN
-	iotWebConf.setStatusPin(STATUS_PIN);
+	#ifdef LED_BUILTIN
+	iotWebConf.setStatusPin(LED_BUILTIN);
 	#endif
 	iotWebConf.setWifiConnectionTimeoutMs(5000);
 	iotWebConf.addParameter(&separator);
