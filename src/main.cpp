@@ -76,8 +76,9 @@ const char* rootCACertificateGraph = \
 "-----END CERTIFICATE-----\n";
 
 // Global settings
-#define NUMLEDS 16  							// number of LEDs on the strip
-#define DATAPIN 13 								// GPIO pin used to drive the LED strip (20 == GPIO/D13)
+// #define NUMLEDS 16  							// Number of LEDs on the strip (if not set via build flags)
+// #define DATAPIN 26							// GPIO pin used to drive the LED strip (20 == GPIO/D13) (if not set via build flags)
+// #define STATUS_PIN LED_BUILTIN				// User builtin LED for status (if not set via build flags)
 #define DEFAULT_POLLING_PRESENCE_INTERVAL "30"	// Default interval to poll for presence info (seconds)
 #define DEFAULT_ERROR_RETRY_INTERVAL 30			// Default interval to try again after errors
 #define TOKEN_REFRESH_TIMEOUT 60	 			// Number of seconds until expiration before token gets refreshed
@@ -86,6 +87,7 @@ const char* rootCACertificateGraph = \
 
 #define DBG_PRINT(x) Serial.print(x)
 #define DBG_PRINTLN(x) Serial.println(x)
+
 
 
 // IotWebConf
@@ -499,8 +501,8 @@ void setup()
 	// Serial.setDebugOutput(true);
 
 	// iotWebConf - Initializing the configuration.
-	#ifdef LED_BUILTIN
-	iotWebConf.setStatusPin(LED_BUILTIN);
+	#ifdef STATUS_PIN
+	iotWebConf.setStatusPin(STATUS_PIN);
 	#endif
 	iotWebConf.setWifiConnectionTimeoutMs(5000);
 	iotWebConf.addParameter(&separator);
