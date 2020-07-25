@@ -152,7 +152,6 @@ uint8_t retries = 0;
 // Multicore
 TaskHandle_t TaskNeopixel; 
 
-#define M5STACKHEX_VISUALIZATION
 #ifdef NEOPIXEL_VISUALIZATION
 	#include "NeopixelVisualization.h"
 #endif
