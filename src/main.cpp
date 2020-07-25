@@ -574,8 +574,8 @@ void setup()
 	setAnimation(0, FX_MODE_STATIC, WHITE);
 
 	// iotWebConf - Initializing the configuration.
-	#ifdef STATUS_PIN
-	iotWebConf.setStatusPin(STATUS_PIN);
+	#ifdef LED_BUILTIN
+	iotWebConf.setStatusPin(LED_BUILTIN);
 	#endif
 	iotWebConf.setWifiConnectionTimeoutMs(5000);
 	iotWebConf.addParameter(&separator);
