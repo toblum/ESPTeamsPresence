@@ -100,7 +100,7 @@ const char* rootCACertificateGraph = \
 
 
 // Global settings
-// #define NUMLEDS 16  							// Number of LEDs on the strip (if not set via build flags)
+// #define NUMLEDS 16  							// Default number of LEDs on the strip (if not set via build flags)
 // #define DATAPIN 26							// GPIO pin used to drive the LED strip (20 == GPIO/D13) (if not set via build flags)
 // #define STATUS_PIN LED_BUILTIN				// User builtin LED for status (if not set via build flags)
 #define DEFAULT_POLLING_PRESENCE_INTERVAL "30"	// Default interval to poll for presence info (seconds)
@@ -136,7 +136,7 @@ IotWebConfSeparator separator = IotWebConfSeparator();
 IotWebConfParameter paramClientId = IotWebConfParameter("Client-ID (Generic ID: 3837bbf0-30fb-47ad-bce8-f460ba9880c3)", "clientId", paramClientIdValue, STRING_LEN, "text", "e.g. 3837bbf0-30fb-47ad-bce8-f460ba9880c3", "3837bbf0-30fb-47ad-bce8-f460ba9880c3");
 IotWebConfParameter paramTenant = IotWebConfParameter("Tenant hostname / ID", "tenantId", paramTenantValue, STRING_LEN, "text", "e.g. contoso.onmicrosoft.com");
 IotWebConfParameter paramPollInterval = IotWebConfParameter("Presence polling interval (sec) (default: 30)", "pollInterval", paramPollIntervalValue, INTEGER_LEN, "number", "10..300", DEFAULT_POLLING_PRESENCE_INTERVAL, "min='10' max='300' step='5'");
-IotWebConfParameter paramNumLeds = IotWebConfParameter("Number of LEDs (default: 16)", "numLeds", paramNumLedsValue, INTEGER_LEN, "number", "1..500", "16", "min='1' max='500' step='1'");
+IotWebConfParameter paramNumLeds = IotWebConfParameter("Number of LEDs (leave empty for default)", "numLeds", paramNumLedsValue, INTEGER_LEN, "number", "0..500", "16", "min='0' max='500' step='1'");
 byte lastIotWebConfState;
 
 // HTTP client
@@ -545,7 +545,7 @@ void setup()
 	// Visualization
 	numberLeds = atoi(paramNumLedsValue);
 	if (numberLeds < 1) {
-		DBG_PRINTLN(F("Number of LEDs not given, using 16."));
+		DBG_PRINTLN(F("Number of LEDs not given, using default."));
 		numberLeds = NUMLEDS;
 	}
 	initVisualization(numberLeds);
