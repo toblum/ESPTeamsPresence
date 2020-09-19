@@ -37,7 +37,8 @@ boolean requestJsonApi(JsonDocument& doc, String url, String payload = "", size_
 
 		// Send auth header?
 		if (sendAuth) {
-			https.addHeader("Authorization", "Bearer " + access_token);
+			String header = "Bearer " +  access_token;
+			https.addHeader("Authorization", header);
 			Serial.printf("[HTTPS] Auth token valid for %d s.\n", getTokenLifetime());
 		}
 
