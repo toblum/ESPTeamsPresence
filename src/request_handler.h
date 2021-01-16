@@ -55,6 +55,11 @@ boolean requestJsonApi(JsonDocument& doc, String url, String payload = "", size_
 			// HTTP header has been send and Server response header has been handled
 			Serial.printf("[HTTPS] Method: %s, Response code: %d\n", type.c_str(), httpCode);
 
+			// Just for debugging purposes:
+			// if (url.indexOf("presence") > 0) {
+			// 	Serial.println(client->readString());
+			// }
+
 			// File found at server (HTTP 200, 301), or HTTP 400 with response payload
 			if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY || httpCode == HTTP_CODE_BAD_REQUEST) {
 				// Parse JSON data

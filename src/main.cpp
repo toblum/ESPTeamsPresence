@@ -387,9 +387,9 @@ void pollForToken() {
 // Get presence information
 void pollPresence() {
 	// See: https://github.com/microsoftgraph/microsoft-graph-docs/blob/ananya/api-reference/beta/resources/presence.md
-	const size_t capacity = JSON_OBJECT_SIZE(4) + 220;
+	const size_t capacity = JSON_OBJECT_SIZE(4) + 500;
 	DynamicJsonDocument responseDoc(capacity);
-	boolean res = requestJsonApi(responseDoc, "https://graph.microsoft.com/beta/me/presence", "", capacity, "GET", true);
+	boolean res = requestJsonApi(responseDoc, "https://graph.microsoft.com/v1.0/me/presence", "", capacity, "GET", true);
 
 	if (!res) {
 		state = SMODEPRESENCEREQUESTERROR;
