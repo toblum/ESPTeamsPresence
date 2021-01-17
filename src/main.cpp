@@ -110,7 +110,7 @@ const char wifiInitialApPassword[] = "presence";
 DNSServer dnsServer;
 WebServer server(80);
 
-IotWebConf iotWebConf(thingName, &dnsServer, &server, wifiInitialApPassword);
+IotWebConf iotWebConf(thingName, &dnsServer, &server, wifiInitialApPassword, "0.17.0");
 
 // Add parameter
 #define STRING_LEN 64
@@ -119,11 +119,13 @@ char paramClientIdValue[STRING_LEN];
 char paramTenantValue[STRING_LEN];
 char paramPollIntervalValue[INTEGER_LEN];
 char paramNumLedsValue[INTEGER_LEN];
+char paramBrightnessValue[INTEGER_LEN];
 IotWebConfSeparator separator = IotWebConfSeparator();
 IotWebConfParameter paramClientId = IotWebConfParameter("Client-ID (Generic ID: 3837bbf0-30fb-47ad-bce8-f460ba9880c3)", "clientId", paramClientIdValue, STRING_LEN, "text", "e.g. 3837bbf0-30fb-47ad-bce8-f460ba9880c3", "3837bbf0-30fb-47ad-bce8-f460ba9880c3");
 IotWebConfParameter paramTenant = IotWebConfParameter("Tenant hostname / ID", "tenantId", paramTenantValue, STRING_LEN, "text", "e.g. contoso.onmicrosoft.com");
 IotWebConfParameter paramPollInterval = IotWebConfParameter("Presence polling interval (sec) (default: 30)", "pollInterval", paramPollIntervalValue, INTEGER_LEN, "number", "10..300", DEFAULT_POLLING_PRESENCE_INTERVAL, "min='10' max='300' step='5'");
 IotWebConfParameter paramNumLeds = IotWebConfParameter("Number of LEDs (default: 16)", "numLeds", paramNumLedsValue, INTEGER_LEN, "number", "1..500", "16", "min='1' max='500' step='1'");
+IotWebConfParameter paramBrightness = IotWebConfParameter("Brightness of LEDs (default: 50)", "brightness", paramBrightnessValue, INTEGER_LEN, "number", "1..255", "50", "min='1' max='255' step='1'");
 byte lastIotWebConfState;
 
 // HTTP client
@@ -132,6 +134,7 @@ WiFiClientSecure client;
 // WS2812FX
 WS2812FX ws2812fx = WS2812FX(NUMLEDS, DATAPIN, NEO_GRB + NEO_KHZ800);
 int numberLeds;
+int brightness;
 
 // OTA update
 HTTPUpdateServer httpUpdater;
@@ -597,6 +600,7 @@ void setup()
 	iotWebConf.addParameter(&paramTenant);
 	iotWebConf.addParameter(&paramPollInterval);
 	iotWebConf.addParameter(&paramNumLeds);
+	iotWebConf.addParameter(&paramBrightness);
 	// iotWebConf.setFormValidator(&formValidator);
 	// iotWebConf.getApTimeoutParameter()->visible = true;
 	// iotWebConf.getApTimeoutParameter()->defaultValue = "10";
@@ -614,6 +618,12 @@ void setup()
 	}
 	ws2812fx.setLength(numberLeds);
 	ws2812fx.setCustomShow(customShow);
+
+	if (brightness == 0) {
+		DBG_PRINTLN(F("Brightness==0 / not set, using default 50."));
+		brightness = 50;
+	}
+	ws2812fx.setBrightness(brightness);
 
 	// HTTP server - Set up required URL handlers on the web server.
 	server.on("/", HTTP_GET, handleRoot);

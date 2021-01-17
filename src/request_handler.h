@@ -173,6 +173,7 @@ void handleRoot() {
 	s += "<div class=\"nes-field mt-s\"><label for=\"name_field\">Tenant hostname / ID</label><input type=\"text\" id=\"name_field\" class=\"nes-input\" disabled value=\"" + String(paramTenantValue) +  "\"></div>";
 	s += "<div class=\"nes-field mt-s\"><label for=\"name_field\">Polling interval (sec)</label><input type=\"text\" id=\"name_field\" class=\"nes-input\" disabled value=\"" + String(paramPollIntervalValue) +  "\"></div>";
 	s += "<div class=\"nes-field mt-s\"><label for=\"name_field\">Number of LEDs</label><input type=\"text\" id=\"name_field\" class=\"nes-input\" disabled value=\"" + String(paramNumLedsValue) +  "\"></div>";
+	s += "<div class=\"nes-field mt-s\"><label for=\"name_field\">Brightness<input type=\"text\" id=\"name_field\" class=\"nes-input\" disabled value=\"" + String(paramBrightnessValue) + "\">";
 	s += "</section>";
 
 	s += "<section class=\"nes-container with-title mt\"><h3 class=\"title\">Memory usage</h3>";
@@ -271,6 +272,12 @@ boolean formValidator() {
 		paramNumLeds.errorMessage = "Please provide a value for the number of LEDs!";
 		valid = false;
 	}
+	int l5 = server.arg(paramBrightness.getId()).length();
+	if (l5 < 1)
+	{
+		paramBrightness.errorMessage = "Please provide a value for the brightness of the LEDs!";
+		valid = false;
+	}
 
 	return valid;
 }
@@ -279,6 +286,7 @@ boolean formValidator() {
 void onConfigSaved() {
 	DBG_PRINTLN(F("Configuration was updated."));
 	ws2812fx.setLength(atoi(paramNumLedsValue));
+	ws2812fx.setBrightness(atoi(paramBrightnessValue));
 }
 
 // Requests to /startDevicelogin
