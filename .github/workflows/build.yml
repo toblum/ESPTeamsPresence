@@ -17,12 +17,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install -U platformio
       - name: Build
-        run: platformio run
+        run: platformio run -e esp32doit-devkit-v1 -e esp32doit-devkit-v1-nocertcheck
+      - name: Rename release files
+        run: mv .pio/build/esp32doit-devkit-v1-nocertcheck/firmware.bin .pio/build/esp32doit-devkit-v1-nocertcheck/firmware-nocertcheck.bin
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            .pio/build/az-delivery-devkit-v4/firmware.bin
+            .pio/build/esp32doit-devkit-v1/firmware.bin
+            .pio/build/esp32doit-devkit-v1/firmware-nocertcheck.bin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
