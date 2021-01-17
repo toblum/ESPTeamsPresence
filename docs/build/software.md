@@ -8,7 +8,8 @@ This video shows the build and setup process:
 
 ## Using prebuild firmware version (recommended)
 
-You can find the latest build on the [releases page](https://github.com/toblum/ESPTeamsPresence/releases). Download the "firmware.bin".
+You can find the latest build on the [releases page](https://github.com/toblum/ESPTeamsPresence/releases). Download the "firmware.bin".  
+> **Note:** There is also a "firmware-nocertcheck.bin". This version doesn't check the validity of the SSL certificates, when communicating with the Graph APIs. The communication is still encrypted. Use this version only if you know what that means.
 
 ### Prerequisites
 Most ESP32 boards use the CP210x USB chip. If the board is not recognized by the system, you need to install the [appropriate driver](https://www.silabs.com/products/development-tools/software/usb-to-uart-bridge-vcp-drivers). Please find detailed instructions [here](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/establish-serial-connection.html).
