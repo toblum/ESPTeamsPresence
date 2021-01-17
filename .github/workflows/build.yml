@@ -26,6 +26,6 @@ jobs:
         with:
           files: |
             .pio/build/esp32doit-devkit-v1/firmware.bin
-            .pio/build/esp32doit-devkit-v1/firmware-nocertcheck.bin
+            .pio/build/esp32doit-devkit-v1-nocertcheck/firmware-nocertcheck.bin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
