@@ -17,11 +17,13 @@ boolean requestJsonApi(JsonDocument& doc, String url, String payload = "", size_
 	// WiFiClient
 	WiFiClientSecure *client = new WiFiClientSecure;
 
+	#ifndef DISABLECERTCHECK
 	if (url.indexOf("graph.microsoft.com") > -1) {
 		client->setCACert(rootCACertificateGraph);
 	} else {
 		client->setCACert(rootCACertificateLogin);
 	}
+	#endif
 
 	// HTTPClient
 	HTTPClient https;

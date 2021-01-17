@@ -23,6 +23,22 @@
 #include "ESP32_RMT_Driver.h"
 
 
+// Global settings
+// #define NUMLEDS 16							// Number of LEDs on the strip (if not set via build flags)
+// #define DATAPIN 26							// GPIO pin used to drive the LED strip (20 == GPIO/D13) (if not set via build flags)
+// #define DISABLECERTCHECK 1					// Uncomment to disable https certificate checks (if not set via build flags)
+// #define STATUS_PIN LED_BUILTIN				// User builtin LED for status (if not set via build flags)
+#define DEFAULT_POLLING_PRESENCE_INTERVAL "30"	// Default interval to poll for presence info (seconds)
+#define DEFAULT_ERROR_RETRY_INTERVAL 30			// Default interval to try again after errors
+#define TOKEN_REFRESH_TIMEOUT 60	 			// Number of seconds until expiration before token gets refreshed
+#define CONTEXT_FILE "/context.json"			// Filename of the context file
+#define VERSION "0.16.0"						// Version of the software
+
+#define DBG_PRINT(x) Serial.print(x)
+#define DBG_PRINTLN(x) Serial.println(x)
+
+
+#ifndef DISABLECERTCHECK
 // Tool to get certs: https://projects.petrucci.ch/esp32/
 
 // certificate for https://login.microsoftonline.com
@@ -81,20 +97,7 @@ const char* rootCACertificateGraph = \
 "MrY=\n" \
 "-----END CERTIFICATE-----\n" \
 "";
-
-
-// Global settings
-// #define NUMLEDS 16  							// Number of LEDs on the strip (if not set via build flags)
-// #define DATAPIN 26							// GPIO pin used to drive the LED strip (20 == GPIO/D13) (if not set via build flags)
-// #define STATUS_PIN LED_BUILTIN				// User builtin LED for status (if not set via build flags)
-#define DEFAULT_POLLING_PRESENCE_INTERVAL "30"	// Default interval to poll for presence info (seconds)
-#define DEFAULT_ERROR_RETRY_INTERVAL 30			// Default interval to try again after errors
-#define TOKEN_REFRESH_TIMEOUT 60	 			// Number of seconds until expiration before token gets refreshed
-#define CONTEXT_FILE "/context.json"			// Filename of the context file
-#define VERSION "0.16.0"						// Version of the software
-
-#define DBG_PRINT(x) Serial.print(x)
-#define DBG_PRINTLN(x) Serial.println(x)
+#endif
 
 
 
@@ -574,6 +577,9 @@ void setup()
 	DBG_PRINTLN();
 	DBG_PRINTLN(F("setup() Starting up..."));
 	// Serial.setDebugOutput(true);
+	#ifdef DISABLECERTCHECK
+		DBG_PRINTLN(F("WARNING: Checking of HTTPS certificates disabled."));
+	#endif
 
 	// WS2812FX
 	ws2812fx.init();
