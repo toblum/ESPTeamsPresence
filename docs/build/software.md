@@ -37,7 +37,4 @@ Hash of data verified.
 
 ![Flasher settings](https://github.com/toblum/ESPTeamsPresence/raw/master/docs/pics/flash_software.gif)
 
-
-## Build your own version using platform.io in VSCode
-
-**TODO**
+I you don't have success with the nodemcu-pyflasher, you could also try [ESPHome-Flasher](https://github.com/esphome/esphome-flasher/releases/latest). It has also a serial monitor that gives you additional informations on what happens.
