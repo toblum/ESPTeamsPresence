@@ -36,6 +36,7 @@ boolean requestJsonApi(JsonDocument& doc, String url, String payload = "", size_
     if (https.begin(*client, url)) {  // HTTPS
 		https.setConnectTimeout(10000);
 		https.setTimeout(10000);
+		https.useHTTP10(true);
 
 		// Send auth header?
 		if (sendAuth) {
