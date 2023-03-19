@@ -32,7 +32,7 @@
 #define DEFAULT_ERROR_RETRY_INTERVAL 30			// Default interval to try again after errors
 #define TOKEN_REFRESH_TIMEOUT 60	 			// Number of seconds until expiration before token gets refreshed
 #define CONTEXT_FILE "/context.json"			// Filename of the context file
-#define VERSION "0.18.2"						// Version of the software
+#define VERSION "0.18.3"						// Version of the software
 
 #define DBG_PRINT(x) Serial.print(x)
 #define DBG_PRINTLN(x) Serial.println(x)
@@ -41,7 +41,7 @@
 #ifndef DISABLECERTCHECK
 // Tool to get certs: https://projects.petrucci.ch/esp32/
 
-// certificate for https://graph.microsoft.com
+// certificate for https://graph.microsoft.com and https://login.microsoftonline.com
 // DigiCert Global Root CA, valid until Mon Sep 23 2030, size: 1761 bytes 
 const char* rootCACertificate = \
 "-----BEGIN CERTIFICATE-----\n" \
