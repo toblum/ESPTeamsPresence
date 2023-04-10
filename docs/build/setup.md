@@ -36,7 +36,7 @@ Please provide the following data:
 
 
 - Client-ID:  
-  Client-ID of the Azure App that is used to connect to Teams. You can use the generic ID 3837bbf0-30fb-47ad-bce8-f460ba9880c3 or setup your own Azure App. The generic ID should work fine in most cases. It's a multi-tenant app that I registered. You can use it instead of registering your own Azure app (what's also possible).
+  Client-ID of the Azure App that is used to connect to Teams. You can use the generic ID 3837bbf0-30fb-47ad-bce8-f460ba9880c3 or setup your own Azure App. The generic ID should work fine in most cases. It's a multi-tenant app that I registered. You can use it instead of registering your own Azure app (what's also possible). Find more information on how to register you own app [here](https://github.com/toblum/ESPTeamsPresence/issues/30#issuecomment-1475274011).
 - Tenant hostname / ID:  
   Hostname of your tenant, e.g. contoso.onmicrosoft.com. You can also use the tenant GUID.
 - Presence polling interval (sec):  
