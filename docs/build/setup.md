@@ -21,6 +21,8 @@ Now open a browser on the device / phone that is connected to the hotspot and op
 The configuration UI of the device should open now. It looks like this:  
 ![Device hotspot](https://github.com/toblum/ESPTeamsPresence/raw/master/docs/pics/device_config.png)
 
+**Note:** If you want to configure these settings later again, you may be asked for username and password. Here you should use "admin" as username and your "AP password" as the password.
+
 Please provide the following data:
 
 - Thing name (required):  
