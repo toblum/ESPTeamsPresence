@@ -356,7 +356,7 @@ void pollForToken() {
 // Get presence information
 void pollPresence() {
 	// See: https://github.com/microsoftgraph/microsoft-graph-docs/blob/ananya/api-reference/beta/resources/presence.md
-	const size_t capacity = JSON_OBJECT_SIZE(4) + 500;
+	const size_t capacity = 1024;
 	DynamicJsonDocument responseDoc(capacity);
 	boolean res = requestJsonApi(responseDoc, "https://graph.microsoft.com/v1.0/me/presence", "", capacity, "GET", true);
 
