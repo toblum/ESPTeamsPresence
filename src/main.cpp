@@ -417,6 +417,7 @@ boolean refreshToken() {
 		state = SMODEPOLLPRESENCE;
 	} else {
 		DBG_PRINTLN(F("refreshToken() - Error:"));
+		Serial.println(responseDoc.as<String>());
 		// Set retry after timeout
 		tsPolling = millis() + (DEFAULT_ERROR_RETRY_INTERVAL * 1000);
 	}
