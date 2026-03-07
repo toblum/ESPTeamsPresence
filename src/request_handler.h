@@ -292,7 +292,7 @@ void handleStartDevicelogin() {
 		DBG_PRINTLN(F("handleStartDevicelogin()"));
 
 		// Request devicelogin context
-		const size_t capacity = JSON_OBJECT_SIZE(6) + 540;
+		const size_t capacity = JSON_OBJECT_SIZE(6) + 1024;
 		DynamicJsonDocument doc(capacity);
 		boolean res = requestJsonApi(doc, "https://login.microsoftonline.com/" + String(paramTenantValue) + "/oauth2/v2.0/devicecode", "client_id=" + String(paramClientIdValue) + "&scope=offline_access%20openid%20Presence.Read", capacity);
 
