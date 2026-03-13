@@ -31,10 +31,6 @@ boolean requestJsonApi(JsonDocument& doc, String url, String payload = "", size_
 	// HTTPClient
 	HTTPClient https;
 
-	// Prepare empty response
-	const int emptyCapacity = JSON_OBJECT_SIZE(1);
-	DynamicJsonDocument emptyDoc(emptyCapacity);
-
 	// DBG_PRINT("[HTTPS] begin...\n");
     if (https.begin(*client, url)) {  // HTTPS
 		https.setConnectTimeout(10000);
@@ -77,6 +73,8 @@ boolean requestJsonApi(JsonDocument& doc, String url, String payload = "", size_
 				if (error) {
 					DBG_PRINT(F("deserializeJson() failed: "));
 					DBG_PRINTLN(error.c_str());
+					Serial.printf("[HTTPS] JsonDocument usage/capacity: %u/%u\n", doc.memoryUsage(), doc.capacity());
+					Serial.printf("[HTTPS] Heap after deserialize error: free=%u, min=%u, largest=%u\n", ESP.getFreeHeap(), ESP.getMinFreeHeap(), ESP.getMaxAllocHeap());
 					https.end();
 					return false;
 				} else {
@@ -91,6 +89,7 @@ boolean requestJsonApi(JsonDocument& doc, String url, String payload = "", size_
 			}
 		} else {
 			Serial.printf("[HTTPS] Request failed: %s\n", https.errorToString(httpCode).c_str());
+			Serial.printf("[HTTPS] URL: %s\n", url.c_str());
 			https.end();
 			return false;
 		}
@@ -292,7 +291,7 @@ void handleStartDevicelogin() {
 		DBG_PRINTLN(F("handleStartDevicelogin()"));
 
 		// Request devicelogin context
-		const size_t capacity = JSON_OBJECT_SIZE(6) + 1024;
+		const size_t capacity = JSON_OBJECT_SIZE(8) + 4096;
 		DynamicJsonDocument doc(capacity);
 		boolean res = requestJsonApi(doc, "https://login.microsoftonline.com/" + String(paramTenantValue) + "/oauth2/v2.0/devicecode", "client_id=" + String(paramClientIdValue) + "&scope=offline_access%20openid%20Presence.Read", capacity);
 
@@ -303,7 +302,11 @@ void handleStartDevicelogin() {
 			interval = doc["interval"].as<unsigned int>();
 
 			// Prepare response JSON
-			const size_t responseCapacity = JSON_OBJECT_SIZE(3);
+			size_t responseCapacity = JSON_OBJECT_SIZE(3)
+				+ doc["user_code"].as<String>().length()
+				+ doc["verification_uri"].as<String>().length()
+				+ doc["message"].as<String>().length()
+				+ 64;
 			DynamicJsonDocument responseDoc(responseCapacity);
 			responseDoc["user_code"] = doc["user_code"].as<const char*>();
 			responseDoc["verification_uri"] = doc["verification_uri"].as<const char*>();
@@ -313,9 +316,27 @@ void handleStartDevicelogin() {
 			state = SMODEDEVICELOGINSTARTED;
 			tsPolling = millis() + (interval * 1000);
 
+			DBG_PRINTLN(F("handleStartDevicelogin() - got device code, user code and interval:"));
+			DBG_PRINTLN("  device_code.length: " + String(device_code.length()));
+			DBG_PRINTLN("  user_code: " + user_code);
+			DBG_PRINTLN("  interval: " + String(interval));
+			DBG_PRINTLN("  responseCapacity: " + String(responseCapacity));
+
 			// Send JSON response
 			server.send(200, "application/json", responseDoc.as<String>());
 		} else {
+			if (!res) {
+				DBG_PRINTLN(F("handleStartDevicelogin() - requestJsonApi failed"));
+			} else {
+				DBG_PRINTLN(F("handleStartDevicelogin() - response missing expected fields"));
+				Serial.printf("  has device_code=%d user_code=%d interval=%d verification_uri=%d message=%d\n",
+					doc.containsKey("device_code"),
+					doc.containsKey("user_code"),
+					doc.containsKey("interval"),
+					doc.containsKey("verification_uri"),
+					doc.containsKey("message"));
+				Serial.printf("  doc usage/capacity=%u/%u\n", doc.memoryUsage(), doc.capacity());
+			}
 			server.send(500, "application/json", F("{\"error\": \"devicelogin_unknown_response\"}"));
 		}
 	} else {
